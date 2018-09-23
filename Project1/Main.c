@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-//#include <string.h>
+#include <string.h>
 //#pragma warning(disable : 4996) //Used for VisualStudio, to avoid fopen_s Error
 
 int main(){
@@ -13,6 +13,8 @@ int main(){
 		- store the data in pic
 		- do everything in a cleaner way
 	*/
+	char filename[] = "lena";
+
 	int Fs = 4, Fl = 2, depth = 0, width = 0, height = 0;
 	long fileLength = 0;
 	char param1[8], param2[4], param3[4];
@@ -69,12 +71,7 @@ int main(){
 			pic[i][j+2] = abs(buffer[offset + i * width + 3 * j + 2]);//Blue value
 		}
 	}
-	for (int i = 0; i < 5; ++i) {
-		for (int j = 0; j < 512; ++j) {
-			printf("%d ", pic[i][j]);
-		}
-		printf("\n");
-	}
+	
 
 
 	//======================= ALGORITHM ===========================//
@@ -168,12 +165,32 @@ int main(){
 	//Takes the filtred image and saves it as a .ppm
 	/*TODO:
 		- create a new file, oily_filename
-		- write header for .ppm format
 		- write data
 		- close file  	
 	*/
-	FILE *pNewFile = fopen("file.txt", "wb");
-	fprintf(pNewFile, "Hello.");
+	char oily_filename[20] = "oily_";
+	strcat(oily_filename, filename);
+	strcat(oily_filename, ".ppm");
+
+	FILE *pNewFile = fopen(oily_filename, "wb");
+	//Writing the header
+	char header[16] = "P6\n", temp[4];
+	sprintf(temp, "%d", height);
+	strcat(header, temp);
+	strcat(header, " ");
+	sprintf(temp, "%d", width);
+	strcat(header, temp);
+	strcat(header, "\n");
+	sprintf(temp, "%d", depth);
+	strcat(header, temp);
+	printf("%s\n", header);
+	strcat(header, "\n");
+	fwrite(header, 1, sizeof(header), pNewFile);
+	//Writing the data contained in pic
+	for (int i = 0; i < height; ++i) {
+		fwrite(pic[i], 1, sizeof(pic[0]), pNewFile);
+		fwrite("\n", 1, 1, pNewFile);	
+	}
 	fclose(pNewFile);
 
 	//======================= END OF PROGRAM ===========================//
