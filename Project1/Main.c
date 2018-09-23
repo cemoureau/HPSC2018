@@ -66,13 +66,11 @@ int main(){
 	//Create an array of integers instead of binary values
 	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < width; ++j) {
-			pic[i][j] =   abs(buffer[offset + i * width + 3 * j]);//Red value
-			pic[i][j+1] = abs(buffer[offset + i * width + 3 * j + 1]);//Green value
-			pic[i][j+2] = abs(buffer[offset + i * width + 3 * j + 2]);//Blue value
+			pic[i][j] =   buffer[offset + i*3*width + 3*j];//Red value
+			pic[i][j+1] = buffer[offset + i*3*width + 3*j + 1];//Green value
+			pic[i][j+2] = buffer[offset + i*3*width + 3*j + 2];//Blue value
 		}
 	}
-	
-
 
 	//======================= ALGORITHM ===========================//
 	/*
@@ -164,9 +162,7 @@ int main(){
 	//======================= POST-PROCESSING ===========================//
 	//Takes the filtred image and saves it as a .ppm
 	/*TODO:
-		- create a new file, oily_filename
-		- write data
-		- close file  	
+		- get colors (lol)	
 	*/
 	char oily_filename[20] = "oily_";
 	strcat(oily_filename, filename);
@@ -186,17 +182,24 @@ int main(){
 	printf("%s\n", header);
 	strcat(header, "\n");
 	fwrite(header, 1, sizeof(header), pNewFile);
+
 	//Writing the data contained in pic
+	char * newBuffer = (char *)malloc(fileLength-offset); //Creates another buffer
+
 	for (int i = 0; i < height; ++i) {
-		fwrite(pic[i], 1, sizeof(pic[0]), pNewFile);
-		fwrite("\n", 1, 1, pNewFile);	
+		for (int j = 0; j < width-2; ++j) {
+			newBuffer[width*i*3 + 3*j] = pic[i][j];
+			newBuffer[width*i*3 + 3*j + 1] = pic[i][j+1];
+			newBuffer[width*i*3 + 3*j + 2] = pic[i][j+2];
+		}	
 	}
+	fwrite(newBuffer, 1, fileLength-offset, pNewFile);
 	fclose(pNewFile);
 
 	//======================= END OF PROGRAM ===========================//
 	free(buffer);
 	//free(adresses);
 	free(pic);	 
-	//system("PAUSE");
+	//system("PAUSE"); //For Windows only
 	return(0);
 }
