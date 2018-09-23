@@ -53,16 +53,16 @@ int main(){
 	fileLength = ftell(pFile);
 	fseek(pFile, 0, SEEK_SET);
 	//Allocate memory
-	char * buffer = (char *)malloc(fileLength+1); //Creates a buffer
+	unsigned char * buffer = (char *)malloc(fileLength+1); //Creates a buffer
 	//Read
-	fread(buffer, fileLength, 1, pFile);
+	fread(buffer, fileLength+1, 1, pFile);
 	fclose(pFile);
 
 
 	int offset = 16; //Number of bytes preceeding the image data
-	char **pic = (char **)malloc(height*sizeof(char *));
+	unsigned char **pic = (unsigned char **)malloc(height*sizeof(char *));
 	for (int i = 0; i < height; ++i)
-		pic[i] = (char *)malloc(3*width * sizeof(char));
+		pic[i] = (unsigned char *)malloc(3*width * sizeof(unsigned char));
 	//Create an array of integers instead of binary values
 	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < width; ++j) {
@@ -71,6 +71,19 @@ int main(){
 			pic[i][j+2] = buffer[offset + i*3*width + 3*j + 2];//Blue value
 		}
 	}
+	
+	printf("Buffer: ");
+	for (int j = 0; j < 20; j+=3) {
+		printf("%d %d %d |", buffer[offset+j], buffer[offset+j+1], buffer[offset+j+2]);
+	}
+	printf("\n");
+
+	printf("Array:  ");
+	for (int j = 0; j < 20; j+=3) {
+		printf("%d %d %d |", pic[0][j], pic[0][j+1], pic[0][j+2]);
+	}
+	printf("\n");
+	
 
 	//======================= ALGORITHM ===========================//
 	/*
@@ -179,25 +192,25 @@ int main(){
 	strcat(header, "\n");
 	sprintf(temp, "%d", depth);
 	strcat(header, temp);
-	printf("%s\n", header);
 	strcat(header, "\n");
 	fwrite(header, 1, sizeof(header), pNewFile);
 
 	//Writing the data contained in pic
-	char * newBuffer = (char *)malloc(fileLength-offset); //Creates another buffer
+	char * newBuffer = (char *)malloc(3*8*height*width); //Creates another buffer
 
 	for (int i = 0; i < height; ++i) {
-		for (int j = 0; j < width-2; ++j) {
-			newBuffer[width*i*3 + 3*j] = pic[i][j];
-			newBuffer[width*i*3 + 3*j + 1] = pic[i][j+1];
-			newBuffer[width*i*3 + 3*j + 2] = pic[i][j+2];
-		}	
+		for (int j = 0; j < width; ++j) {
+			newBuffer[width*i*3 + 3*j] = pic[i][j];//Green
+			newBuffer[width*i*3 + 3*j + 1] = pic[i][j+1];//Blue
+			newBuffer[width*i*3 + 3*j + 2] = pic[i][j+2];// Red 
+		}
 	}
 	fwrite(newBuffer, 1, fileLength-offset, pNewFile);
 	fclose(pNewFile);
 
 	//======================= END OF PROGRAM ===========================//
 	free(buffer);
+	free(newBuffer);
 	//free(adresses);
 	free(pic);	 
 	//system("PAUSE"); //For Windows only
