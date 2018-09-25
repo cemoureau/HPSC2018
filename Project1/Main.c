@@ -24,26 +24,32 @@ int main(int argc, char **argv){
 	//======================= PRE-PROCESSING ===========================//
 	//Reads the content of the image file and stores it in an array
 	/*TODO :
-		- change Fs and Fl to be callable
-		- change fopen argument to be callable
-		- generalize size of width/height parameters
-		- store the data in pic
 		- do everything in a cleaner way
 	*/
-	char filename[] = "lena";
+	
+	printf("Usage: ./Main <file_name> <Fs> <Fl>\n-----------------\n");
+	//Get some parameters
+	char *filename = argv[1];
+	int Fs = atoi(argv[2]);
+	int Fl = atoi(argv[3]);
 
-	int Fs = 4, Fl = 2;
+	printf("File: %s\n", filename);
+	printf("Fs: %d\n", Fs);
+	printf("Fl: %d\n", Fl);
+
 	int depth = 0, width = 0, height = 0;
 	long fileLength = 0;
-	char param1[8], param2[4], param3[4];
+	char param1[8], param2[4], param3[4];//Needs to be generalized
 
-	//system("color 0a");
+	//Read the file
 	FILE *pFile; //File pointer
+	strcat(filename, ".ppm");
 	pFile = fopen("lena.ppm", "rb"); //Opens the file  
 	if (pFile == NULL) {//Checks if the file was opened correctly
 		printf("Error while opening the file.\n");
 		exit(EXIT_FAILURE);
 	}
+
 	//Extract the image parameters from the .ppm file
 	fgets(param1, 4, pFile);//P6
 	if (param1[0] != 'P' || param1[1] != '6') {
@@ -64,7 +70,7 @@ int main(int argc, char **argv){
 	fgets(param1, 4, pFile);//Carrier return
 	fgets(param1, 4, pFile);//Depth
 	depth = atoi(param1);
-	printf("Image properties\n-----------------\nWidth : %d\nHeight: %d\nDepth: %d\n-----------------\n", width, height, depth);
+	printf("Image properties\n-----------------\nWidth : %d\nHeight: %d\nColor depth: %d\n-----------------\n", width, height, depth);
 	
 	//Getting the file length
 	fseek(pFile, 0, SEEK_END);
@@ -87,11 +93,6 @@ int main(int argc, char **argv){
 			pic[i][j+2] = buffer[offset + i*3*width + j+2];//Blue value
 		}
 	}
-
-	for(int i=0 ; i<3*20 ; ++i){
-
-		printf("%d\n", pic[0][i]);
-	}	
 
 	//======================= ALGORITHM ===========================//
 	/*
@@ -182,12 +183,9 @@ int main(int argc, char **argv){
 				*/
 	//======================= POST-PROCESSING ===========================//
 	//Takes the filtred image and saves it as a .ppm
-	/*TODO:
-		- get colors (lol)	
-	*/
+	
 	char oily_filename[20] = "oily_";
 	strcat(oily_filename, filename);
-	strcat(oily_filename, ".ppm");
 
 	FILE *pNewFile = fopen(oily_filename, "wb");
 	//Writing the header
@@ -213,7 +211,6 @@ int main(int argc, char **argv){
 		}
 	}
 	fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);
-	//fwrite('\0', 1, 1, pNewFile);
 	fclose(pNewFile);
 
 	//======================= END OF PROGRAM ===========================//
