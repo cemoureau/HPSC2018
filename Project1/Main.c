@@ -3,7 +3,24 @@
 #include <string.h>
 //#pragma warning(disable : 4996) //Used for VisualStudio, to avoid fopen_s Error
 
-int main(){
+/*
+char *pixels;
+pixels = (char *)malloc(dataSize*sizeof(char));
+
+
+typedef struct Image{
+	unsigned int width;
+	unsigned int height;
+	char *pixels;
+}Image;
+image.width = width;
+image.height = height;
+image.pixels = pixels;
+
+*/
+
+
+int main(int argc, char **argv){
 	//======================= PRE-PROCESSING ===========================//
 	//Reads the content of the image file and stores it in an array
 	/*TODO :
@@ -15,7 +32,8 @@ int main(){
 	*/
 	char filename[] = "lena";
 
-	int Fs = 4, Fl = 2, depth = 0, width = 0, height = 0;
+	int Fs = 4, Fl = 2;
+	int depth = 0, width = 0, height = 0;
 	long fileLength = 0;
 	char param1[8], param2[4], param3[4];
 
@@ -53,37 +71,27 @@ int main(){
 	fileLength = ftell(pFile);
 	fseek(pFile, 0, SEEK_SET);
 	//Allocate memory
-	unsigned char * buffer = (char *)malloc(fileLength+1); //Creates a buffer
+	unsigned char buffer[fileLength+1]; //Creates a buffer
 	//Read
 	fread(buffer, fileLength+1, 1, pFile);
 	fclose(pFile);
 
 
-	int offset = 16; //Number of bytes preceeding the image data
-	unsigned char **pic = (unsigned char **)malloc(height*sizeof(char *));
-	for (int i = 0; i < height; ++i)
-		pic[i] = (unsigned char *)malloc(3*width * sizeof(unsigned char));
+	int offset = 15; //Number of bytes preceeding the image data
+	unsigned char pic[height][3*width];
 	//Create an array of integers instead of binary values
 	for (int i = 0; i < height; ++i) {
-		for (int j = 0; j < width; ++j) {
-			pic[i][j] =   buffer[offset + i*3*width + 3*j];//Red value
-			pic[i][j+1] = buffer[offset + i*3*width + 3*j + 1];//Green value
-			pic[i][j+2] = buffer[offset + i*3*width + 3*j + 2];//Blue value
+		for (int j = 0; j < 3*width; j+=3) {
+			pic[i][j]   = buffer[offset + i*3*width + j];//Red value
+			pic[i][j+1] = buffer[offset + i*3*width + j+1];//Green value
+			pic[i][j+2] = buffer[offset + i*3*width + j+2];//Blue value
 		}
 	}
-	
-	printf("Buffer: ");
-	for (int j = 0; j < 20; j+=3) {
-		printf("%d %d %d |", buffer[offset+j], buffer[offset+j+1], buffer[offset+j+2]);
-	}
-	printf("\n");
 
-	printf("Array:  ");
-	for (int j = 0; j < 20; j+=3) {
-		printf("%d %d %d |", pic[0][j], pic[0][j+1], pic[0][j+2]);
-	}
-	printf("\n");
-	
+	for(int i=0 ; i<3*20 ; ++i){
+
+		printf("%d\n", pic[0][i]);
+	}	
 
 	//======================= ALGORITHM ===========================//
 	/*
@@ -183,7 +191,7 @@ int main(){
 
 	FILE *pNewFile = fopen(oily_filename, "wb");
 	//Writing the header
-	char header[16] = "P6\n", temp[4];
+	char header[15] = "P6\n", temp[4];
 	sprintf(temp, "%d", height);
 	strcat(header, temp);
 	strcat(header, " ");
@@ -194,25 +202,20 @@ int main(){
 	strcat(header, temp);
 	strcat(header, "\n");
 	fwrite(header, 1, sizeof(header), pNewFile);
-
 	//Writing the data contained in pic
-	char * newBuffer = (char *)malloc(3*8*height*width); //Creates another buffer
+	unsigned char newBuffer[3*height*width]; //Creates another buffer
 
 	for (int i = 0; i < height; ++i) {
-		for (int j = 0; j < width; ++j) {
-			newBuffer[width*i*3 + 3*j] = pic[i][j];//Green
-			newBuffer[width*i*3 + 3*j + 1] = pic[i][j+1];//Blue
-			newBuffer[width*i*3 + 3*j + 2] = pic[i][j+2];// Red 
+		for (int j = 0; j < 3*width; j+=3) {
+			newBuffer[width*i*3 + j] = pic[i][j];//Red
+			newBuffer[width*i*3 + j + 1] = pic[i][j+1];//Green
+			newBuffer[width*i*3 + j + 2] = pic[i][j+2];// Blue
 		}
 	}
-	fwrite(newBuffer, 1, fileLength-offset, pNewFile);
+	fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);
+	//fwrite('\0', 1, 1, pNewFile);
 	fclose(pNewFile);
 
 	//======================= END OF PROGRAM ===========================//
-	free(buffer);
-	free(newBuffer);
-	//free(adresses);
-	free(pic);	 
-	//system("PAUSE"); //For Windows only
 	return(0);
 }
