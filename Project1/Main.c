@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#pragma warning(disable : 4996) //Used for VisualStudio, to avoid fopen_s Error
+#include <math.h>
 
 /*
 char *pixels;
@@ -25,6 +25,7 @@ int main(int argc, char **argv){
 	//Reads the content of the image file and stores it in an array
 	/*TODO :
 		- do everything in a cleaner way
+		- generalize offset size
 	*/
 	
 	printf("Usage: ./Main <file_name> <Fs> <Fl>\n-----------------\n");
@@ -71,7 +72,6 @@ int main(int argc, char **argv){
 	fgets(param1, 4, pFile);//Depth
 	depth = atoi(param1);
 	printf("Image properties\n-----------------\nWidth : %d\nHeight: %d\nColor depth: %d\n-----------------\n", width, height, depth);
-	
 	//Getting the file length
 	fseek(pFile, 0, SEEK_END);
 	fileLength = ftell(pFile);
@@ -82,9 +82,8 @@ int main(int argc, char **argv){
 	fread(buffer, fileLength+1, 1, pFile);
 	fclose(pFile);
 
-
 	int offset = 15; //Number of bytes preceeding the image data
-	unsigned char pic[height][3*width];
+	unsigned char pic[height][3*width]; //(x, y)
 	//Create an array of integers instead of binary values
 	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < 3*width; j+=3) {
@@ -105,68 +104,86 @@ int main(int argc, char **argv){
 		- array containing the filtered image
 	*/
 
-	//Compute the neighbor's positions
-	/*
-	int *adresses = (int *)malloc(2 * Fs*Fs * sizeof(int)); //Declare a larger than needed array
+	printf("Algorithm started...\n");
+	unsigned char newPic[height][3*width];
+
+	//Creates a square mask
+	int adresses[2*4*Fs*Fs]; //Declare a larger than needed array
 	int k = 0;
-	for (int a = -Fs; a < Fs; ++a) {
-		for (int b = -Fs; b < Fs; ++b) {
-			if (a*a + b * b <= Fs) {
+	for (int a = Fs; a >= -Fs; --a) {
+		for (int b = Fs; b >= -Fs; --b) {
+			//printf("a = %d :: b = %d\n", a, b);
+			if (a*a + b*b <= Fs*Fs) {
 				//Append (a,b) to adresses
 				adresses[k] = a;
 				adresses[k + 1] = b;
 				k += 2;
 			}
 		}
-	} //We now have k elements in "adresses"
-	//Resizing the "adresses" array:
-	adresses = (int *)realloc(adresses, k * sizeof(int));
+	} //We now have k elements in "adresses" and k/2 neighbors
 
-	int *neighbors = (int *)malloc(k * sizeof(int));
-	for (int j = 0; j < height; ++j) {
-		for (int i = 0; i < width; ++i) {
+	//Applying the algorithm to the whole image
+	for (int i = 0; i < 1; ++i) {
+		for (int j = 0; j < width; ++j) {
 			//Get the neighboring pixels for (i,j)
 			//REMARK : the neighbors include (i,j)
+			int actual_neighbors = 0;
+			int neighbors[k]; //Contains PIXEL adresses
+			printf("Line: %d, row: %d\n", i, j);
 			for (int l = 0; l < k; l += 2) {
-				//Check if the neighor is not outside the picture
-				if ((i + adresses[l] >= 0) && (i + adresses[l] < width)) {
-					neighbors[l] = i + adresses[l];
-				}
-				if ((j + adresses[l + 1] >= 0) && (j + adresses[l + 1] < height)) {
-					neighbors[l + 1] = j + adresses[l + 1];
+				//Check if the neighbor is not outside the picture
+				if ((i + adresses[l+1] >= 0) && (i + adresses[l+1] < height) && (j + adresses[l] >= 0) && (j + adresses[l] < width)) {
+					neighbors[2*actual_neighbors] = j + adresses[l];// x value
+					neighbors[2*actual_neighbors + 1] = i + adresses[l+1];// y value
+					actual_neighbors++;
 				}
 			}
+
+			printf("Actual neighbors: %d\n", actual_neighbors);
+			for (int l = 0; l <= actual_neighbors+2; l+=2) {
+				printf("Position(%d:%d) ", neighbors[l+1], neighbors[l]);
+				printf("Color: %d %d %d\n", pic[neighbors[l]][3*neighbors[l + 1]], pic[neighbors[l]][3*neighbors[l + 1]+1], pic[neighbors[l]][3*neighbors[l + 1]+2]);
+			}
+			
 			//Compute the color intensity (int)
-			int *intensities = (int *)malloc(k / 2 * sizeof(int));
+			int intensities[actual_neighbors];
 			int R = 0, G = 0, B = 0;
-			for (int l = 0; l < k; l += 2) {
-				R = pic[neighbors[l]][3 * neighbors[l + 1]];
-				G = pic[neighbors[l]][3 * neighbors[l + 1] + 1];
-				B = pic[neighbors[l]][3 * neighbors[l + 1] + 2];
-				intensities[l / 2] = round((R + G + B) / (3 * Fl));
+			for (int l = 0; l < 2*actual_neighbors; l+=2) {
+				R = pic[neighbors[l]][3*neighbors[l + 1]];
+				G = pic[neighbors[l]][3*neighbors[l + 1] + 1];
+				B = pic[neighbors[l]][3*neighbors[l + 1] + 2];
+				intensities[l / 2] = floor((R + G + B) / (3 * Fl));
 			}
+			//CHECK POINT
+			printf("\nIntensities: ");
+			for (int l = 0; l < actual_neighbors; l++) printf("%d ", intensities[l]);
+			printf("\n");
+
 			//Count occurences of Ik in the set of intensities
-			int occurences[depth];
+			int occurences[depth+1];
 			for (int l = 0; l <= depth; ++l) {
-				for (int m = 0; m < k / 2; ++m) {
+				occurences[l] = 0;
+			}
+			for (int l = 0; l <= floor(depth/Fl)+1; ++l) {
+				for (int m = 0; m < actual_neighbors; ++m) {
 					if (intensities[m] == l) {
 						occurences[l]++;
 					}
 				}
 			}
-			//Compute the color intensities
-			int *Irgb[3];
-			for (i = 0; i < 3; i++)
-				Irgb[i] = (int *)malloc(depth * sizeof(int));
-			for (int l = 0; l <= depth; ++l) {
-				for (int m = 0; m < occurences[l]; ++m) {
-					//Sum over each color	
-					Irgb[0][l] += r(a, b);
-					Irgb[1][l] += g(a, b);
-					Irgb[2][l] += b(a, b);
 
+			//Compute the color intensities
+			int Irgb[3][depth];
+			for (int m = 0; m < depth; ++m) {
+				for (int l = 0; l < 2*actual_neighbors; l+=2) {
+					if (intensities[l] == m){
+						Irgb[0][m] += pic[neighbors[l]][3*neighbors[l+1]];// Red
+						Irgb[1][m] += pic[neighbors[l]][3*neighbors[l+1] + 1];// Green
+						Irgb[2][m] += pic[neighbors[l]][3*neighbors[l+1] + 2];// Blue
+					}
 				}
 			}
+
 			//Find max(occurences)
 			int Imax = 0;
 			for (int l = 0; l <= depth; ++l) {
@@ -174,13 +191,26 @@ int main(int argc, char **argv){
 					Imax = occurences[l];
 				}
 			}
-			//Assigning pixel values
-			int *newPic[3];
-			for (i = 0; i < 3; i++)
-				Irgb[i] = (int *)malloc(depth * sizeof(int));
+			printf("Max intensity: %d\n", Imax);
+
+			//Find max(colors intensity)
+			int I_max_rgb[3]={0,0,0};
+			for (int l = 0; l < depth; ++l) {
+				if (Irgb[0][l] > I_max_rgb[0])I_max_rgb[0]=Irgb[0][l];//Red
+				if (Irgb[1][l] > I_max_rgb[1])I_max_rgb[1]=Irgb[1][l];//Green
+				if (Irgb[2][l] > I_max_rgb[2])I_max_rgb[2]=Irgb[2][l];//Blue
+			}
+
+			//Assign new values
+			newPic[i][3*j] = floor(I_max_rgb[0] / Imax);//Red
+			newPic[i][3*j+1] = floor(I_max_rgb[1] / Imax);//Green
+			newPic[i][3*j+2] = floor(I_max_rgb[2] / Imax);//Blue
+			printf("New pixel values: %d %d %d\n", newPic[i][3*j], newPic[i][3*j+1], newPic[i][3*j+2]);
+			printf("================================\n");
+
 		}
 	}
-				*/
+	
 	//======================= POST-PROCESSING ===========================//
 	//Takes the filtred image and saves it as a .ppm
 	
@@ -205,9 +235,9 @@ int main(int argc, char **argv){
 
 	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < 3*width; j+=3) {
-			newBuffer[width*i*3 + j] = pic[i][j];//Red
-			newBuffer[width*i*3 + j + 1] = pic[i][j+1];//Green
-			newBuffer[width*i*3 + j + 2] = pic[i][j+2];// Blue
+			newBuffer[width*i*3 + j] = newPic[i][j];//Red
+			newBuffer[width*i*3 + j + 1] = newPic[i][j+1];//Green
+			newBuffer[width*i*3 + j + 2] = newPic[i][j+2];// Blue
 		}
 	}
 	fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);
