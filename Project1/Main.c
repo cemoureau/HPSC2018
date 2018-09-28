@@ -7,10 +7,11 @@
 #define DEBUG 0
 
 /*=======================================================================================
-*	This code was written by: Antonin Aumètre
+*	This code was written by: Antonin Aumètre - antonin.aumetre@gmail.com
 *	For: High Performance Scientific course at ULiège, 2018-19
+*	Project 1
 *
-*	Under
+*	Under GNU General Public License 09/2018
 =======================================================================================*/
 
 
@@ -176,7 +177,6 @@ int main(int argc, char **argv){
 
 			//Compute the color intensities
 			int Irgb[3][depth+1];
-
 			for (int m = 0; m <= depth; ++m) {
 				for (int l = 0; l < 3; ++l) {
 					Irgb[l][m] = 0;
