@@ -2,24 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 #define DEBUG 0
-
-/*
-char *pixels;
-pixels = (char *)malloc(dataSize*sizeof(char));
-
-
-typedef struct Image{
-	unsigned int width;
-	unsigned int height;
-	char *pixels;
-}Image;
-image.width = width;
-image.height = height;
-image.pixels = pixels;
-
-*/
 
 
 int main(int argc, char **argv){
@@ -47,7 +32,7 @@ int main(int argc, char **argv){
 	//Read the file
 	FILE *pFile; //File pointer
 	strcat(filename, ".ppm");
-	pFile = fopen("lena.ppm", "rb"); //Opens the file  
+	pFile = fopen(filename, "rb"); //Opens the file  
 	if (pFile == NULL) {//Checks if the file was opened correctly
 		printf("Error while opening the file.\n");
 		exit(EXIT_FAILURE);
@@ -85,15 +70,16 @@ int main(int argc, char **argv){
 	fclose(pFile);
 
 	int offset = 15; //Number of bytes preceeding the image data
-	unsigned char pic[height][3*width]; //(x, y)
+	unsigned char pic[height][width][3]; //(x, y, c)
 	//Create an array of integers instead of binary values
 	for (int i = 0; i < height; ++i) {
-		for (int j = 0; j < 3*width; j+=3) {
-			pic[i][j]   = buffer[offset + i*3*width + j];//Red value
-			pic[i][j+1] = buffer[offset + i*3*width + j+1];//Green value
-			pic[i][j+2] = buffer[offset + i*3*width + j+2];//Blue value
+		for (int j = 0; j < width; ++j) {
+			for (int k = 0; k < 3 ; ++k) {
+				pic[i][j][k] = buffer[offset + 3*i*width + 3*j + k];
+			}
 		}
 	}
+	clock_t begin = clock();
 
 	//======================= ALGORITHM ===========================//
 	/*
@@ -107,7 +93,7 @@ int main(int argc, char **argv){
 	*/
 
 	printf("Algorithm started...\n");
-	unsigned char newPic[height][3*width];
+	unsigned char newPic[height][width][3];
 
 	//Creates a square mask
 	int adresses[2*4*Fs*Fs]; //Declare a larger than needed array
@@ -126,6 +112,8 @@ int main(int argc, char **argv){
 
 	//Applying the algorithm to the whole image
 	for (int i = 0; i < height; ++i) {
+		float progress = (float)100.0*(i+1.0)/height;
+		printf("\r%.1f %%", progress);
 		for (int j = 0; j < width; ++j) {
 			//Get the neighboring pixels for (i,j)
 			//REMARK : the neighbors include (i,j)
@@ -146,7 +134,7 @@ int main(int argc, char **argv){
 				printf("Actual neighbors: %d\n", actual_neighbors);
 				for (int l = 0; l < 2*actual_neighbors; l+=2) {
 					printf("Position(%d:%d) ", neighbors[l+1], neighbors[l]);
-					printf("Color: %d %d %d\n", pic[neighbors[l]][3*neighbors[l + 1]], pic[neighbors[l]][3*neighbors[l + 1]+1], pic[neighbors[l]][3*neighbors[l + 1]+2]);
+					printf("Color: %d %d %d\n", pic[neighbors[l]][neighbors[l + 1]][0], pic[neighbors[l]][neighbors[l + 1]][1], pic[neighbors[l]][neighbors[l + 1]][2]);
 				}
 			}
 			
@@ -154,9 +142,9 @@ int main(int argc, char **argv){
 			int intensities[actual_neighbors];
 			int R = 0, G = 0, B = 0;
 			for (int l = 0; l < 2*actual_neighbors; l+=2) {
-				R = pic[neighbors[l]][3*neighbors[l + 1]];
-				G = pic[neighbors[l]][3*neighbors[l + 1] + 1];
-				B = pic[neighbors[l]][3*neighbors[l + 1] + 2];
+				R = pic[neighbors[l]][neighbors[l + 1]][0];
+				G = pic[neighbors[l]][neighbors[l + 1]][1];
+				B = pic[neighbors[l]][neighbors[l + 1]][2];
 				intensities[l / 2] = floor((R + G + B) / (3 * Fl));
 			}
 			
@@ -192,9 +180,9 @@ int main(int argc, char **argv){
 			for (int m = 0; m <= depth; ++m) {//For each intensity level (256 values)
 				for (int l = 0; l < 2*actual_neighbors; l+=2) {
 					if (intensities[l/2] == m){
-						Irgb[0][m] += pic[neighbors[l]][3*neighbors[l+1]];// Red
-						Irgb[1][m] += pic[neighbors[l]][3*neighbors[l+1] + 1];// Green
-						Irgb[2][m] += pic[neighbors[l]][3*neighbors[l+1] + 2];// Blue
+						Irgb[0][m] += pic[neighbors[l]][neighbors[l+1]][0];// Red
+						Irgb[1][m] += pic[neighbors[l]][neighbors[l+1]][1];// Green
+						Irgb[2][m] += pic[neighbors[l]][neighbors[l+1]][2];// Blue
 						if (DEBUG)printf("Intensity: %d, Sum:%d\n", intensities[l], Irgb[0][m]);
 					}
 				}
@@ -219,17 +207,18 @@ int main(int argc, char **argv){
 
 			if(DEBUG)printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
 			//Assign new values
-			newPic[i][3*j] = floor(I_max_rgb[0] / Imax);//Red
-			newPic[i][3*j+1] = floor(I_max_rgb[1] / Imax);//Green
-			newPic[i][3*j+2] = floor(I_max_rgb[2] / Imax);//Blue
+			newPic[i][j][0] = floor(I_max_rgb[0] / Imax);//Red
+			newPic[i][j][1] = floor(I_max_rgb[1] / Imax);//Green
+			newPic[i][j][2] = floor(I_max_rgb[2] / Imax);//Blue
 			if (DEBUG){
-				printf("New pixel values: %d %d %d\n", newPic[i][3*j], newPic[i][3*j+1], newPic[i][3*j+2]);
+				printf("New pixel values: %d %d %d\n", newPic[i][j][0], newPic[i][j][1], newPic[i][j][2]);
 				printf("================================\n");
 			}
-
 		}
 	}
-	printf("Job done !\n");
+	clock_t end = clock();
+	double time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
+	printf("\nJob done in %2.4lf s !\n", time_spent);
 
 	//======================= POST-PROCESSING ===========================//
 	//Takes the filtred image and saves it as a .ppm
@@ -254,10 +243,10 @@ int main(int argc, char **argv){
 	unsigned char newBuffer[3*height*width]; //Creates another buffer
 
 	for (int i = 0; i < height; ++i) {
-		for (int j = 0; j < 3*width; j+=3) {
-			newBuffer[width*i*3 + j] = newPic[i][j];//Red
-			newBuffer[width*i*3 + j + 1] = newPic[i][j+1];//Green
-			newBuffer[width*i*3 + j + 2] = newPic[i][j+2];// Blue
+		for (int j = 0; j < width; ++j) {
+			newBuffer[3*(width*i + j)]   =   newPic[j][i][0];//Red
+			newBuffer[3*(width*i + j) + 1] = newPic[j][i][1];//Green
+			newBuffer[3*(width*i + j) + 2] = newPic[j][i][2];// Blue
 		}
 	}
 	fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);
