@@ -6,6 +6,13 @@
 
 #define DEBUG 0
 
+/*=======================================================================================
+*	This code was written by: Antonin Aumètre
+*	For: High Performance Scientific course at ULiège, 2018-19
+*
+*	Under
+=======================================================================================*/
+
 
 int main(int argc, char **argv){
 	//======================= PRE-PROCESSING ===========================//
@@ -35,7 +42,7 @@ int main(int argc, char **argv){
 	pFile = fopen(filename, "rb"); //Opens the file  
 	if (pFile == NULL) {//Checks if the file was opened correctly
 		printf("Error while opening the file.\n");
-		exit(EXIT_FAILURE);
+		exit(0);
 	}
 
 	//Extract the image parameters from the .ppm file
@@ -113,7 +120,7 @@ int main(int argc, char **argv){
 	//Applying the algorithm to the whole image
 	for (int i = 0; i < height; ++i) {
 		float progress = (float)100.0*(i+1.0)/height;
-		printf("\r%.1f %%", progress);
+		printf("%.1f %%\n", progress);
 		for (int j = 0; j < width; ++j) {
 			//Get the neighboring pixels for (i,j)
 			//REMARK : the neighbors include (i,j)
