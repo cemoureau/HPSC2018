@@ -3,6 +3,8 @@
 #include <string.h>
 #include <math.h>
 
+#define DEBUG 0
+
 /*
 char *pixels;
 pixels = (char *)malloc(dataSize*sizeof(char));
@@ -129,7 +131,7 @@ int main(int argc, char **argv){
 			//REMARK : the neighbors include (i,j)
 			int actual_neighbors = 0;
 			int neighbors[k]; //Contains PIXEL adresses
-			printf("Line: %d, row: %d\n", i, j);
+			if (DEBUG)printf("Line: %d, row: %d\n", i, j);
 
 			for (int l = 0; l < k; l += 2) {
 				//Check if the neighbor is not outside the picture
@@ -140,10 +142,12 @@ int main(int argc, char **argv){
 				}
 			}
 
-			//printf("Actual neighbors: %d\n", actual_neighbors);
-			for (int l = 0; l <= actual_neighbors+2; l+=2) {
-				printf("Position(%d:%d) ", neighbors[l+1], neighbors[l]);
-				printf("Color: %d %d %d\n", pic[neighbors[l]][3*neighbors[l + 1]], pic[neighbors[l]][3*neighbors[l + 1]+1], pic[neighbors[l]][3*neighbors[l + 1]+2]);
+			if (DEBUG){
+				printf("Actual neighbors: %d\n", actual_neighbors);
+				for (int l = 0; l < 2*actual_neighbors; l+=2) {
+					printf("Position(%d:%d) ", neighbors[l+1], neighbors[l]);
+					printf("Color: %d %d %d\n", pic[neighbors[l]][3*neighbors[l + 1]], pic[neighbors[l]][3*neighbors[l + 1]+1], pic[neighbors[l]][3*neighbors[l + 1]+2]);
+				}
 			}
 			
 			//Compute the color intensity (int)
@@ -155,10 +159,12 @@ int main(int argc, char **argv){
 				B = pic[neighbors[l]][3*neighbors[l + 1] + 2];
 				intensities[l / 2] = floor((R + G + B) / (3 * Fl));
 			}
-			//CHECK POINT
-			printf("Intensities: ");
-			for (int l = 0; l < actual_neighbors; l++) printf("%d ", intensities[l]);
-			printf("\n");
+			
+			if (DEBUG){
+				printf("Intensities: ");
+				for (int l = 0; l < actual_neighbors; l++) printf("%d ", intensities[l]);
+					printf("\n");
+			}
 
 			//Count occurences of Ik in the set of intensities
 			int occurences[depth+1];
@@ -174,27 +180,25 @@ int main(int argc, char **argv){
 			}
 
 			//Compute the color intensities
-			int Irgb[3][depth];
+			int Irgb[3][depth+1];
 
-			for (int m = 0; m < depth; ++m) {
+			for (int m = 0; m <= depth; ++m) {
 				for (int l = 0; l < 3; ++l) {
 					Irgb[l][m] = 0;
 				}
 			}
 
-			for (int m = 0; m < depth; ++m) {
+			// ça pue ici !!!!!!!!
+			for (int m = 0; m <= depth; ++m) {//For each intensity level (256 values)
 				for (int l = 0; l < 2*actual_neighbors; l+=2) {
-					if (intensities[l] == m){
-						printf("%d\n",pic[neighbors[l]][3*neighbors[l+1]] );
+					if (intensities[l/2] == m){
 						Irgb[0][m] += pic[neighbors[l]][3*neighbors[l+1]];// Red
 						Irgb[1][m] += pic[neighbors[l]][3*neighbors[l+1] + 1];// Green
 						Irgb[2][m] += pic[neighbors[l]][3*neighbors[l+1] + 2];// Blue
+						if (DEBUG)printf("Intensity: %d, Sum:%d\n", intensities[l], Irgb[0][m]);
 					}
 				}
 			}
-			/*for (int m = 0; m < depth; ++m) {
-				printf("%d\n", Irgb[0][m]);
-			}*/
 
 			//Find max(occurences)
 			int Imax = 0;
@@ -203,27 +207,30 @@ int main(int argc, char **argv){
 					Imax = occurences[l];
 				}
 			}
-			printf("Max intensity: %d\n", Imax);
+			if (DEBUG)printf("Max intensity: %d\n", Imax);
 
 			//Find max(colors intensity)
 			int I_max_rgb[3]={0,0,0};
-			for (int l = 0; l < depth; ++l) {
+			for (int l = 0; l <= depth; ++l) {
 				if (Irgb[0][l] > I_max_rgb[0])I_max_rgb[0]=Irgb[0][l];//Red
 				if (Irgb[1][l] > I_max_rgb[1])I_max_rgb[1]=Irgb[1][l];//Green
 				if (Irgb[2][l] > I_max_rgb[2])I_max_rgb[2]=Irgb[2][l];//Blue
 			}
 
-			printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
+			if(DEBUG)printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
 			//Assign new values
 			newPic[i][3*j] = floor(I_max_rgb[0] / Imax);//Red
 			newPic[i][3*j+1] = floor(I_max_rgb[1] / Imax);//Green
 			newPic[i][3*j+2] = floor(I_max_rgb[2] / Imax);//Blue
-			printf("New pixel values: %d %d %d\n", newPic[i][3*j], newPic[i][3*j+1], newPic[i][3*j+2]);
-			printf("================================\n");
+			if (DEBUG){
+				printf("New pixel values: %d %d %d\n", newPic[i][3*j], newPic[i][3*j+1], newPic[i][3*j+2]);
+				printf("================================\n");
+			}
 
 		}
 	}
-	
+	printf("Job done !\n");
+
 	//======================= POST-PROCESSING ===========================//
 	//Takes the filtred image and saves it as a .ppm
 	
