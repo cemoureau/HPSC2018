@@ -123,13 +123,14 @@ int main(int argc, char **argv){
 	} //We now have k elements in "adresses" and k/2 neighbors
 
 	//Applying the algorithm to the whole image
-	for (int i = 0; i < 1; ++i) {
+	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < width; ++j) {
 			//Get the neighboring pixels for (i,j)
 			//REMARK : the neighbors include (i,j)
 			int actual_neighbors = 0;
 			int neighbors[k]; //Contains PIXEL adresses
 			printf("Line: %d, row: %d\n", i, j);
+
 			for (int l = 0; l < k; l += 2) {
 				//Check if the neighbor is not outside the picture
 				if ((i + adresses[l+1] >= 0) && (i + adresses[l+1] < height) && (j + adresses[l] >= 0) && (j + adresses[l] < width)) {
@@ -139,7 +140,7 @@ int main(int argc, char **argv){
 				}
 			}
 
-			printf("Actual neighbors: %d\n", actual_neighbors);
+			//printf("Actual neighbors: %d\n", actual_neighbors);
 			for (int l = 0; l <= actual_neighbors+2; l+=2) {
 				printf("Position(%d:%d) ", neighbors[l+1], neighbors[l]);
 				printf("Color: %d %d %d\n", pic[neighbors[l]][3*neighbors[l + 1]], pic[neighbors[l]][3*neighbors[l + 1]+1], pic[neighbors[l]][3*neighbors[l + 1]+2]);
@@ -155,7 +156,7 @@ int main(int argc, char **argv){
 				intensities[l / 2] = floor((R + G + B) / (3 * Fl));
 			}
 			//CHECK POINT
-			printf("\nIntensities: ");
+			printf("Intensities: ");
 			for (int l = 0; l < actual_neighbors; l++) printf("%d ", intensities[l]);
 			printf("\n");
 
@@ -174,15 +175,26 @@ int main(int argc, char **argv){
 
 			//Compute the color intensities
 			int Irgb[3][depth];
+
+			for (int m = 0; m < depth; ++m) {
+				for (int l = 0; l < 3; ++l) {
+					Irgb[l][m] = 0;
+				}
+			}
+
 			for (int m = 0; m < depth; ++m) {
 				for (int l = 0; l < 2*actual_neighbors; l+=2) {
 					if (intensities[l] == m){
+						printf("%d\n",pic[neighbors[l]][3*neighbors[l+1]] );
 						Irgb[0][m] += pic[neighbors[l]][3*neighbors[l+1]];// Red
 						Irgb[1][m] += pic[neighbors[l]][3*neighbors[l+1] + 1];// Green
 						Irgb[2][m] += pic[neighbors[l]][3*neighbors[l+1] + 2];// Blue
 					}
 				}
 			}
+			/*for (int m = 0; m < depth; ++m) {
+				printf("%d\n", Irgb[0][m]);
+			}*/
 
 			//Find max(occurences)
 			int Imax = 0;
@@ -201,6 +213,7 @@ int main(int argc, char **argv){
 				if (Irgb[2][l] > I_max_rgb[2])I_max_rgb[2]=Irgb[2][l];//Blue
 			}
 
+			printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
 			//Assign new values
 			newPic[i][3*j] = floor(I_max_rgb[0] / Imax);//Red
 			newPic[i][3*j+1] = floor(I_max_rgb[1] / Imax);//Green
