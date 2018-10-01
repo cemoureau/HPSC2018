@@ -103,57 +103,53 @@ int main(int argc, char **argv){
 	printf("Algorithm started...\n");
 	unsigned char newPic[height][width][3];
 
+	int k=0;
 	//Creates a square mask
-	int adresses[2*4*Fs*Fs]; //Declare a larger than needed array
-	int k = 0;
+	int adresses[4*Fs*Fs][2]; //Declare a larger than needed array
 	for (int a = Fs; a >= -Fs; --a) {
 		for (int b = Fs; b >= -Fs; --b) {
-			//printf("a = %d :: b = %d\n", a, b);
 			if (a*a + b*b <= Fs*Fs) {
 				//Append (a,b) to adresses
-				adresses[k] = a;
-				adresses[k + 1] = b;
-				k += 2;
+				adresses[k][0] = a;
+				adresses[k][1] = b;
+				++k;
 			}
 		}
-	} //We now have k elements in "adresses" and k/2 neighbors
+	} //We now have k neighbors
 
 	//Applying the algorithm to the whole image
-	for (int i = 0; i < height; ++i) {
-		float progress = (float)100.0*(i+1.0)/height;
-		printf("%.1f %%\n", progress);
+	for (int i = 0; i < height; ++i){
+		if (DEBUG == 0) printf("%.1f %%\n", (float)100.0*(i+1.0)/height);
 		for (int j = 0; j < width; ++j) {
 			//Get the neighboring pixels for (i,j)
 			//REMARK : the neighbors include (i,j)
-			int actual_neighbors = 0;
-			int neighbors[k]; //Contains PIXEL adresses
 			if (DEBUG)printf("Line: %d, row: %d\n", i, j);
 
-			for (int l = 0; l < k; l += 2) {
+
+			int actual_neighbors = 0;
+			int temp_Pic[k][3];//Create a local copy of the useful portion of the image
+			for (int l = 0; l < k; ++l) {
 				//Check if the neighbor is not outside the picture
-				if ((i + adresses[l+1] >= 0) && (i + adresses[l+1] < height) && (j + adresses[l] >= 0) && (j + adresses[l] < width)) {
-					neighbors[2*actual_neighbors] = j + adresses[l];// x value
-					neighbors[2*actual_neighbors + 1] = i + adresses[l+1];// y value
+				if ((i + adresses[l][1] >= 0) && (i + adresses[l][1] < height) && (j + adresses[l][0] >= 0) && (j + adresses[l][0] < width)) {
+					temp_Pic[actual_neighbors][0] = pic[i + adresses[l][1]][j + adresses[l][0]][0];
+					temp_Pic[actual_neighbors][1] = pic[i + adresses[l][1]][j + adresses[l][0]][1];
+					temp_Pic[actual_neighbors][2] = pic[i + adresses[l][1]][j + adresses[l][0]][2];
 					actual_neighbors++;
 				}
 			}
 
 			if (DEBUG){
 				printf("Actual neighbors: %d\n", actual_neighbors);
-				for (int l = 0; l < 2*actual_neighbors; l+=2) {
-					printf("Position(%d:%d) ", neighbors[l+1], neighbors[l]);
-					printf("Color: %d %d %d\n", pic[neighbors[l]][neighbors[l + 1]][0], pic[neighbors[l]][neighbors[l + 1]][1], pic[neighbors[l]][neighbors[l + 1]][2]);
+				for (int l = 0; l < actual_neighbors; ++l) {
+					printf("Position(%d:%d) ", adresses[l][0], adresses[l][1]);
+					printf("Color: %d %d %d\n", temp_Pic[l][0], temp_Pic[l][1], temp_Pic[l][2]);
 				}
 			}
-			
+
 			//Compute the color intensity (int)
 			int intensities[actual_neighbors];
-			int R = 0, G = 0, B = 0;
-			for (int l = 0; l < 2*actual_neighbors; l+=2) {
-				R = pic[neighbors[l]][neighbors[l + 1]][0];
-				G = pic[neighbors[l]][neighbors[l + 1]][1];
-				B = pic[neighbors[l]][neighbors[l + 1]][2];
-				intensities[l / 2] = floor((R + G + B) / (3 * Fl));
+			for (int l = 0; l < actual_neighbors; ++l) {
+				intensities[l] = floor((temp_Pic[l][0] + temp_Pic[l][1] + temp_Pic[l][2]) / (3 * Fl));
 			}
 			
 			if (DEBUG){
@@ -164,59 +160,47 @@ int main(int argc, char **argv){
 
 			//Count occurences of Ik in the set of intensities
 			int occurences[depth+1];
-			for (int l = 0; l <= depth; ++l) {
-				occurences[l] = 0;
-			}
+			int Imax = 0;
 			for (int l = 0; l <= floor(depth/Fl)+1; ++l) {
+				occurences[l] = 0;
 				for (int m = 0; m < actual_neighbors; ++m) {
 					if (intensities[m] == l) {
 						occurences[l]++;
+						if (occurences[l] > Imax) {
+							Imax = occurences[l];
+						}
 					}
 				}
 			}
 
 			//Compute the color intensities
 			int Irgb[3][depth+1];
-			for (int m = 0; m <= depth; ++m) {
-				for (int l = 0; l < 3; ++l) {
-					Irgb[l][m] = 0;
-				}
-			}
-
-			// ça pue ici !!!!!!!!
+			int I_max_rgb[3]={0,0,0};
 			for (int m = 0; m <= depth; ++m) {//For each intensity level (256 values)
-				for (int l = 0; l < 2*actual_neighbors; l+=2) {
-					if (intensities[l/2] == m){
-						Irgb[0][m] += pic[neighbors[l]][neighbors[l+1]][0];// Red
-						Irgb[1][m] += pic[neighbors[l]][neighbors[l+1]][1];// Green
-						Irgb[2][m] += pic[neighbors[l]][neighbors[l+1]][2];// Blue
-						if (DEBUG)printf("Intensity: %d, Sum:%d\n", intensities[l], Irgb[0][m]);
+				Irgb[0][m] = 0;
+				Irgb[1][m] = 0;
+				Irgb[2][m] = 0;
+				for (int l = 0; l < actual_neighbors; ++l) {
+					if (intensities[l] == m){
+						Irgb[0][m] += temp_Pic[l][0];// Red
+						Irgb[1][m] += temp_Pic[l][1];// Green
+						Irgb[2][m] += temp_Pic[l][2];// Blue
+						if (Irgb[0][m] > I_max_rgb[0])I_max_rgb[0]=Irgb[0][m];//Red
+						if (Irgb[1][m] > I_max_rgb[1])I_max_rgb[1]=Irgb[1][m];//Green
+						if (Irgb[2][m] > I_max_rgb[2])I_max_rgb[2]=Irgb[2][m];//Blue
+						if (DEBUG)printf("Intensity: %d, Sum RED:%d\n", intensities[l], Irgb[0][m]);
 					}
 				}
 			}
 
 			//Find max(occurences)
-			int Imax = 0;
-			for (int l = 0; l <= depth; ++l) {
-				if (occurences[l] > Imax) {
-					Imax = occurences[l];
-				}
-			}
 			if (DEBUG)printf("Max intensity: %d\n", Imax);
-
-			//Find max(colors intensity)
-			int I_max_rgb[3]={0,0,0};
-			for (int l = 0; l <= depth; ++l) {
-				if (Irgb[0][l] > I_max_rgb[0])I_max_rgb[0]=Irgb[0][l];//Red
-				if (Irgb[1][l] > I_max_rgb[1])I_max_rgb[1]=Irgb[1][l];//Green
-				if (Irgb[2][l] > I_max_rgb[2])I_max_rgb[2]=Irgb[2][l];//Blue
-			}
-
+			//Find max(colors intensity)s
 			if(DEBUG)printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
 			//Assign new values
-			newPic[i][j][0] = floor(I_max_rgb[0] / Imax);//Red
-			newPic[i][j][1] = floor(I_max_rgb[1] / Imax);//Green
-			newPic[i][j][2] = floor(I_max_rgb[2] / Imax);//Blue
+			newPic[i][j][0] = I_max_rgb[0] / Imax;//Red
+			newPic[i][j][1] = I_max_rgb[1] / Imax;//Green
+			newPic[i][j][2] = I_max_rgb[2] / Imax;//Blue
 			if (DEBUG){
 				printf("New pixel values: %d %d %d\n", newPic[i][j][0], newPic[i][j][1], newPic[i][j][2]);
 				printf("================================\n");
@@ -251,9 +235,9 @@ int main(int argc, char **argv){
 
 	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < width; ++j) {
-			newBuffer[3*(width*i + j)]   =   newPic[j][i][0];//Red
-			newBuffer[3*(width*i + j) + 1] = newPic[j][i][1];//Green
-			newBuffer[3*(width*i + j) + 2] = newPic[j][i][2];// Blue
+			newBuffer[3*(width*i + j)]   =   newPic[i][j][0];//Red
+			newBuffer[3*(width*i + j) + 1] = newPic[i][j][1];//Green
+			newBuffer[3*(width*i + j) + 2] = newPic[i][j][2];// Blue
 		}
 	}
 	fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);
