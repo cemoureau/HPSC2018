@@ -4,7 +4,7 @@
 #include <math.h>
 #include <time.h>
 
-#define DEBUG 0
+#define DEBUG 1
 
 /*=======================================================================================
 *	This code was written by: Antonin Aumètre - antonin.aumetre@gmail.com
@@ -23,7 +23,7 @@ int main(int argc, char **argv){
 		- generalize offset size
 	*/
 	
-	printf("Usage: ./Main <file_name> <Fs> <Fl>\n-----------------\n");
+	printf("Usage: ./Main <file_name.ppm> <Fs> <Fl>\n-----------------\n");
 	//Get some parameters
 	char *filename = argv[1];
 	int Fs = atoi(argv[2]);
@@ -38,7 +38,7 @@ int main(int argc, char **argv){
 
 	//Read the file
 	FILE *pFile; //File pointer
-	strcat(filename, ".ppm");
+	//strcat(filename, ".ppm");
 	pFile = fopen(filename, "rb"); //Opens the file  
 	if (pFile == NULL) {//Checks if the file was opened correctly
 		printf("Error while opening the file.\n");
@@ -59,7 +59,6 @@ int main(int argc, char **argv){
 		++j;
 	}
 	str[j+1] = '\0';
-	printf("%s\n", str);
 
 	//Separates the strings and assign values
 	char s_width[8], s_height[8], s_depth[4], s_magic[3];
@@ -108,9 +107,11 @@ int main(int argc, char **argv){
 	//Getting the file length
 	fseek(pFile, 0, SEEK_END);
 	fileLength = ftell(pFile);
+	if(DEBUG)printf("File length: %d\n", fileLength);
 	fseek(pFile, 0, SEEK_SET);
 	//Allocate memory
 	unsigned char buffer[fileLength+1]; //Creates a buffer
+	if(DEBUG)printf("Buffer created\n");
 	//Read
 	fread(buffer, fileLength+1, 1, pFile);
 	fclose(pFile);
@@ -166,7 +167,6 @@ int main(int argc, char **argv){
 			//Get the neighboring pixels for (i,j)
 			//REMARK : the neighbors include (i,j)
 			if (DEBUG)printf("Line: %d, row: %d\n", i, j);
-
 
 			int actual_neighbors = 0;
 			int temp_Pic[k][3];//Create a local copy of the useful portion of the image
@@ -279,17 +279,6 @@ int main(int argc, char **argv){
 	strcat(header, "\0");
 	fwrite(header, 1, offset, pNewFile);
 
-	//Writing the data contained in pic
-	/*unsigned char newBuffer[3*height*width]; //Creates another buffer
-	for (int i = 0; i < height; ++i) {
-		for (int j = 0; j < width; ++j) {
-			newBuffer[3*(width*i + j)]   =   newPic[i][j][0];//Red
-			newBuffer[3*(width*i + j) + 1] = newPic[i][j][1];//Green
-			newBuffer[3*(width*i + j) + 2] = newPic[i][j][2];// Blue
-			//printf("%d %d %d ", newBuffer[3*(width*i + j)], newBuffer[3*(width*i + j)+1], newBuffer[3*(width*i + j)+2]);
-		}
-	}
-	fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);*/
 	//Writing the data contained in pic
 	unsigned char newBuffer[3*width]; //Creates another buffer
 	for (int i = 0; i < height; ++i) {
