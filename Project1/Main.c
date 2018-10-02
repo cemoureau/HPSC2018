@@ -38,7 +38,6 @@ int main(int argc, char **argv){
 
 	//Read the file
 	FILE *pFile; //File pointer
-	//strcat(filename, ".ppm");
 	pFile = fopen(filename, "rb"); //Opens the file  
 	if (pFile == NULL) {//Checks if the file was opened correctly
 		printf("Error while opening the file.\n");
