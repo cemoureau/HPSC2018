@@ -52,21 +52,49 @@ int main(int argc, char **argv){
 		printf("Wrong file format.\n");
 		exit(0);
 	}
-	fgets(param1, 8, pFile);//Width	Height
-	for (int i = 0; i < 3; ++i) {//Extract height
-		param2[i] = param1[i];//To be generalized for any size
+
+	//Read the next three parameters as one string
+	char c, str[20];
+	int j=0; // CHANGE THIS VARIABLE'S NAME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	for (int i=0; i< 2; ++i){
+			c = fgetc(pFile);
+		while (c != '\n'){
+			str[j] = c;
+			c = fgetc(pFile);
+			++j;
+		} 
+		str[j] = '\0';
 	}
-	param2[3] = '\0';
-	for (int i = 0; i < 3; ++i) {//Extract height
-		param3[i] = param1[4+i];//To be generalized for any size
+
+	//Separates the strings and assign values
+	char s_width[8], s_height[8], s_depth[4];
+	j = 0;
+	int rep = 0;
+	while ((str[j] != ' ') && (str[j] != '\r') && (str[j] != '\0') && (str[j] != '\n')) {
+		s_width[j] = str[j];
+		++j;
 	}
-	param3[3] = '\0';
-	width = atoi(param2);
-	height = atoi(param3);
-	fgets(param1, 4, pFile);//Carrier return
-	fgets(param1, 4, pFile);//Depth
-	depth = atoi(param1);
+	s_width[j] = '\0';
+	width = atoi(s_width);
+	++j;
+	rep = j;
+	while ((str[j] != ' ') && (str[j] != '\r') && (str[j] != '\0') && (str[j] != '\n')){
+		s_height[j-rep] = str[j];
+		++j;
+	}
+	s_height[j-rep] = '\0';
+	height = atoi(s_height);
+	++j;
+	rep = j;
+	while ((str[j] != ' ') && (str[j] != '\r') && (str[j] != '\0') && (str[j] != '\n')){
+		s_depth[j-rep] = str[j];
+		++j;
+	}
+	s_depth[j-rep] = '\0';
+	depth = atoi(s_depth);
+
 	printf("Image properties\n-----------------\nWidth : %d\nHeight: %d\nColor depth: %d\n-----------------\n", width, height, depth);
+	
 	//Getting the file length
 	fseek(pFile, 0, SEEK_END);
 	fileLength = ftell(pFile);
@@ -77,7 +105,7 @@ int main(int argc, char **argv){
 	fread(buffer, fileLength+1, 1, pFile);
 	fclose(pFile);
 
-	int offset = 15; //Number of bytes preceeding the image data
+	int offset = j+2; //Number of bytes preceeding the image data
 	unsigned char pic[height][width][3]; //(x, y, c)
 	//Create an array of integers instead of binary values
 	for (int i = 0; i < height; ++i) {
@@ -99,7 +127,6 @@ int main(int argc, char **argv){
 	Output :
 		- array containing the filtered image
 	*/
-
 	printf("Algorithm started...\n");
 	unsigned char newPic[height][width][3];
 
@@ -214,12 +241,14 @@ int main(int argc, char **argv){
 	//======================= POST-PROCESSING ===========================//
 	//Takes the filtred image and saves it as a .ppm
 	
-	char oily_filename[20] = "oily_";
+	char oily_filename[16] = "oily_";
 	strcat(oily_filename, filename);
+
+	printf("Offset: %d\n", offset);
 
 	FILE *pNewFile = fopen(oily_filename, "wb");
 	//Writing the header
-	char header[15] = "P6\n", temp[4];
+	char header[30] = "P6\n", temp[4];
 	sprintf(temp, "%d", height);
 	strcat(header, temp);
 	strcat(header, " ");
@@ -229,10 +258,11 @@ int main(int argc, char **argv){
 	sprintf(temp, "%d", depth);
 	strcat(header, temp);
 	strcat(header, "\n");
-	fwrite(header, 1, sizeof(header), pNewFile);
+	strcat(header, "\0");
+	fwrite(header, 1, offset+3, pNewFile);
+
 	//Writing the data contained in pic
 	unsigned char newBuffer[3*height*width]; //Creates another buffer
-
 	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < width; ++j) {
 			newBuffer[3*(width*i + j)]   =   newPic[i][j][0];//Red
