@@ -35,7 +35,6 @@ int main(int argc, char **argv){
 
 	int depth = 0, width = 0, height = 0;
 	long fileLength = 0;
-	char param1[8], param2[4], param3[4];//Needs to be generalized
 
 	//Read the file
 	FILE *pFile; //File pointer
@@ -46,32 +45,42 @@ int main(int argc, char **argv){
 		exit(0);
 	}
 
-	//Extract the image parameters from the .ppm file
-	fgets(param1, 4, pFile);//P6
-	if (param1[0] != 'P' || param1[1] != '6') {
-		printf("Wrong file format.\n");
-		exit(0);
-	}
-
-	//Read the next three parameters as one string
-	char c, str[20];
+	//Read the next parameters as one string
+	char c, str[40];
 	int j=0; // CHANGE THIS VARIABLE'S NAME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	for (int i=0; i< 2; ++i){
+	for (int i=0; i< 4; ++i){
 			c = fgetc(pFile);
-		while (c != '\n'){
+		while ((c != '\n') && (c != '\r')&&(c != '\0') && (c != ' ')){
 			str[j] = c;
 			c = fgetc(pFile);
 			++j;
 		} 
-		str[j] = '\0';
+		str[j] = ' ';
+		++j;
 	}
+	str[j+1] = '\0';
+	printf("%s\n", str);
 
 	//Separates the strings and assign values
-	char s_width[8], s_height[8], s_depth[4];
+	char s_width[8], s_height[8], s_depth[4], s_magic[3];
 	j = 0;
 	int rep = 0;
+
+	//Make a fucking loop !!
+	while ((str[j] != ' ') && (str[j] != '\r') && (str[j] != '\0') && (str[j] != '\n')){
+		s_magic[j-rep] = str[j];
+		++j;
+	}
+	s_magic[j-rep] = '\0';
+	if ((s_magic[0] != 'P') || (s_magic[1] != '6')){
+		printf("Wrong file format. Aborting ...\n");
+		exit(0);
+	}
+	++j;
+	rep = j;
+
 	while ((str[j] != ' ') && (str[j] != '\r') && (str[j] != '\0') && (str[j] != '\n')) {
-		s_width[j] = str[j];
+		s_width[j-rep] = str[j];
 		++j;
 	}
 	s_width[j] = '\0';
@@ -86,6 +95,7 @@ int main(int argc, char **argv){
 	height = atoi(s_height);
 	++j;
 	rep = j;
+
 	while ((str[j] != ' ') && (str[j] != '\r') && (str[j] != '\0') && (str[j] != '\n')){
 		s_depth[j-rep] = str[j];
 		++j;
@@ -105,7 +115,8 @@ int main(int argc, char **argv){
 	fread(buffer, fileLength+1, 1, pFile);
 	fclose(pFile);
 
-	int offset = j+2; //Number of bytes preceeding the image data
+	int offset = j+1; //Number of bytes preceeding the image data
+	printf("The offset is: %d\n", offset);
 	unsigned char pic[height][width][3]; //(x, y, c)
 	//Create an array of integers instead of binary values
 	for (int i = 0; i < height; ++i) {
@@ -127,6 +138,7 @@ int main(int argc, char **argv){
 	Output :
 		- array containing the filtered image
 	*/
+	
 	printf("Algorithm started...\n");
 	unsigned char newPic[height][width][3];
 
@@ -146,7 +158,10 @@ int main(int argc, char **argv){
 
 	//Applying the algorithm to the whole image
 	for (int i = 0; i < height; ++i){
-		if (DEBUG == 0) printf("%.1f %%\n", (float)100.0*(i+1.0)/height);
+		if (DEBUG == 0){
+			int progress = (int)100.0*(i+1.0)/height;
+			if (progress % 5 == 0) printf("%d %%\n", progress);
+		}
 		for (int j = 0; j < width; ++j) {
 			//Get the neighboring pixels for (i,j)
 			//REMARK : the neighbors include (i,j)
@@ -241,14 +256,16 @@ int main(int argc, char **argv){
 	//======================= POST-PROCESSING ===========================//
 	//Takes the filtred image and saves it as a .ppm
 	
-	char oily_filename[16] = "oily_";
+	char oily_filename[20] = "oily_";
 	strcat(oily_filename, filename);
 
 	printf("Offset: %d\n", offset);
 
 	FILE *pNewFile = fopen(oily_filename, "wb");
 	//Writing the header
-	char header[30] = "P6\n", temp[4];
+	char header[offset], temp[6];
+	sprintf(temp, "P6\n");
+	strcat(header, temp);
 	sprintf(temp, "%d", height);
 	strcat(header, temp);
 	strcat(header, " ");
@@ -258,8 +275,8 @@ int main(int argc, char **argv){
 	sprintf(temp, "%d", depth);
 	strcat(header, temp);
 	strcat(header, "\n");
-	strcat(header, "\0");
-	fwrite(header, 1, offset+3, pNewFile);
+	//strcat(header, "\0");
+	fwrite(header, 1, sizeof(header), pNewFile);
 
 	//Writing the data contained in pic
 	unsigned char newBuffer[3*height*width]; //Creates another buffer
@@ -272,7 +289,7 @@ int main(int argc, char **argv){
 	}
 	fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);
 	fclose(pNewFile);
-
 	//======================= END OF PROGRAM ===========================//
+	
 	return(0);
 }
