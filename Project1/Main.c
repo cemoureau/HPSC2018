@@ -3,8 +3,9 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <malloc.h>
 
-#define DEBUG 1
+#define DEBUG 0
 
 /*=======================================================================================
 *	This code was written by: Antonin Aumètre - antonin.aumetre@gmail.com
@@ -106,26 +107,33 @@ int main(int argc, char **argv){
 	//Getting the file length
 	fseek(pFile, 0, SEEK_END);
 	fileLength = ftell(pFile);
-	if(DEBUG)printf("File length: %d\n", fileLength);
+	if(DEBUG)printf("File length: %ld\n", fileLength);
 	fseek(pFile, 0, SEEK_SET);
+
 	//Allocate memory
-	unsigned char buffer[fileLength+1]; //Creates a buffer
+	unsigned char * buffer = (char *)malloc(fileLength+1); //Creates a buffer
 	if(DEBUG)printf("Buffer created\n");
 	//Read
 	fread(buffer, fileLength+1, 1, pFile);
 	fclose(pFile);
 
+	
 	int offset = j+1; //Number of bytes preceeding the image data
 	printf("The offset is: %d\n", offset);
-	unsigned char pic[height][width][3]; //(x, y, c)
+	//unsigned char pic[height][width][3]; //(x, y, c)
+	unsigned char * pic = (unsigned char *)malloc(3*height*width*sizeof(char));
+
+
 	//Create an array of integers instead of binary values
 	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < width; ++j) {
 			for (int k = 0; k < 3 ; ++k) {
-				pic[i][j][k] = buffer[offset + 3*i*width + 3*j + k];
+				pic[3*(i*width + j) + k] = buffer[offset + 3*(i*width + j) + k];
 			}
 		}
 	}
+
+	free(buffer);
 	clock_t begin = clock();
 
 	//======================= ALGORITHM ===========================//
@@ -140,7 +148,8 @@ int main(int argc, char **argv){
 	*/
 	
 	printf("Algorithm started...\n");
-	unsigned char newPic[height][width][3];
+	//unsigned char newPic[height][width][3];
+	unsigned char * newPic = (unsigned char *)malloc(3*height*width*sizeof(char));
 
 	int k=0;
 	//Creates a square mask
@@ -172,9 +181,9 @@ int main(int argc, char **argv){
 			for (int l = 0; l < k; ++l) {
 				//Check if the neighbor is not outside the picture
 				if ((i + adresses[l][1] >= 0) && (i + adresses[l][1] < height) && (j + adresses[l][0] >= 0) && (j + adresses[l][0] < width)) {
-					temp_Pic[actual_neighbors][0] = pic[i + adresses[l][1]][j + adresses[l][0]][0];
-					temp_Pic[actual_neighbors][1] = pic[i + adresses[l][1]][j + adresses[l][0]][1];
-					temp_Pic[actual_neighbors][2] = pic[i + adresses[l][1]][j + adresses[l][0]][2];
+					temp_Pic[actual_neighbors][0] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 0];
+					temp_Pic[actual_neighbors][1] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 1];
+					temp_Pic[actual_neighbors][2] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 2];
 					actual_neighbors++;
 				}
 			}
@@ -239,11 +248,11 @@ int main(int argc, char **argv){
 			//Find max(colors intensity)s
 			if(DEBUG)printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
 			//Assign new values
-			newPic[i][j][0] = I_max_rgb[0] / Imax;//Red
-			newPic[i][j][1] = I_max_rgb[1] / Imax;//Green
-			newPic[i][j][2] = I_max_rgb[2] / Imax;//Blue
+			newPic[3*(i*width + j) + 0] = I_max_rgb[0] / Imax;//Red
+			newPic[3*(i*width + j) + 1] = I_max_rgb[1] / Imax;//Green
+			newPic[3*(i*width + j) + 2] = I_max_rgb[2] / Imax;//Blue
 			if (DEBUG){
-				printf("New pixel values: %d %d %d\n", newPic[i][j][0], newPic[i][j][1], newPic[i][j][2]);
+				printf("New pixel values: %d %d %d\n", newPic[3*(i*width + j) + 0], newPic[3*(i*width + j) + 1], newPic[3*(i*width + j) + 2]);
 				printf("================================\n");
 			}
 		}
@@ -251,6 +260,7 @@ int main(int argc, char **argv){
 	clock_t end = clock();
 	double time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
 	printf("\nJob done in %2.4lf s !\n", time_spent);
+	free(pic);
 
 	//======================= POST-PROCESSING ===========================//
 	//Takes the filtred image and saves it as a .ppm
@@ -282,14 +292,15 @@ int main(int argc, char **argv){
 	unsigned char newBuffer[3*width]; //Creates another buffer
 	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < width; ++j) {
-			newBuffer[3*j]   =   newPic[i][j][0];//Red
-			newBuffer[3*j + 1] = newPic[i][j][1];//Green
-			newBuffer[3*j + 2] = newPic[i][j][2];// Blue
+			newBuffer[3*j]   =   newPic[3*(i*width + j)];//Red
+			newBuffer[3*j + 1] = newPic[3*(i*width + j)+1];//Green
+			newBuffer[3*j + 2] = newPic[3*(i*width + j)+2];// Blue
 		}
 		fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);
 	}
 	fclose(pNewFile);
+	free(newPic);
 	//======================= END OF PROGRAM ===========================//
-	
+
 	return(0);
 }

@@ -1,3 +1,3 @@
 clear
 gcc -o Main Main.c -lm -std=c99
-./Main stairs.ppm 1 1
+./Main lena.ppm 5 25
