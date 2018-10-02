@@ -16,13 +16,13 @@
 =======================================================================================*/
 
 
-int main(int argc, char **argv){
 	//======================= PRE-PROCESSING ===========================//
 	//Reads the content of the image file and stores it in an array
 	/*TODO :
 		- do everything in a cleaner way
-		- generalize offset size
 	*/
+
+	int main(int argc, char **argv){
 	
 	printf("Usage: ./Main <file_name.ppm> <Fs> <Fl>\n-----------------\n");
 	//Get some parameters
@@ -119,8 +119,6 @@ int main(int argc, char **argv){
 
 	
 	int offset = j+1; //Number of bytes preceeding the image data
-	printf("The offset is: %d\n", offset);
-	//unsigned char pic[height][width][3]; //(x, y, c)
 	unsigned char * pic = (unsigned char *)malloc(3*height*width*sizeof(char));
 
 
@@ -135,6 +133,9 @@ int main(int argc, char **argv){
 
 	free(buffer);
 	clock_t begin = clock();
+	clock_t end = clock();
+	double time_spent;
+
 
 	//======================= ALGORITHM ===========================//
 	/*
@@ -148,7 +149,6 @@ int main(int argc, char **argv){
 	*/
 	
 	printf("Algorithm started...\n");
-	//unsigned char newPic[height][width][3];
 	unsigned char * newPic = (unsigned char *)malloc(3*height*width*sizeof(char));
 
 	int k=0;
@@ -168,8 +168,8 @@ int main(int argc, char **argv){
 	//Applying the algorithm to the whole image
 	for (int i = 0; i < height; ++i){
 		if (DEBUG == 0){
-			int progress = (int)100*(i+1.0)/height;
-			printf("%d %%\n", progress);
+			float progress = (float)100*(i+1.0)/height;
+			printf("%.1lf %%\n", progress);
 		}
 		for (int j = 0; j < width; ++j) {
 			//Get the neighboring pixels for (i,j)
@@ -189,6 +189,9 @@ int main(int argc, char **argv){
 			}
 
 			if (DEBUG){
+				end = clock();
+				time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
+				printf("\nMarker 1: %2.4lf s !\n", time_spent);
 				printf("Actual neighbors: %d\n", actual_neighbors);
 				for (int l = 0; l < actual_neighbors; ++l) {
 					printf("Position(%d:%d) ", adresses[l][0], adresses[l][1]);
@@ -224,6 +227,7 @@ int main(int argc, char **argv){
 			}
 
 			//Compute the color intensities
+			//Find max(occurences)
 			int Irgb[3][depth+1];
 			int I_max_rgb[3]={0,0,0};
 			for (int m = 0; m <= depth; ++m) {//For each intensity level (256 values)
@@ -243,32 +247,38 @@ int main(int argc, char **argv){
 				}
 			}
 
-			//Find max(occurences)
-			if (DEBUG)printf("Max intensity: %d\n", Imax);
+			if (DEBUG){
+				end = clock();
+				time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
+				printf("\nMarker 2: %2.4lf s !\n", time_spent);
+				printf("Max intensity: %d\n", Imax);
+			}
 			//Find max(colors intensity)s
 			if(DEBUG)printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
 			//Assign new values
-			newPic[3*(i*width + j) + 0] = I_max_rgb[0] / Imax;//Red
-			newPic[3*(i*width + j) + 1] = I_max_rgb[1] / Imax;//Green
-			newPic[3*(i*width + j) + 2] = I_max_rgb[2] / Imax;//Blue
+			newPic[3*(i*width + j) + 0] = (int) (I_max_rgb[0] / Imax);//Red
+			newPic[3*(i*width + j) + 1] = (int) (I_max_rgb[1] / Imax);//Green
+			newPic[3*(i*width + j) + 2] = (int) (I_max_rgb[2] / Imax);//Blue
 			if (DEBUG){
+				end = clock();
+				time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
+				printf("\nMarker 3: %2.4lf s !\n", time_spent);
 				printf("New pixel values: %d %d %d\n", newPic[3*(i*width + j) + 0], newPic[3*(i*width + j) + 1], newPic[3*(i*width + j) + 2]);
 				printf("================================\n");
 			}
 		}
 	}
-	clock_t end = clock();
-	double time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
+	end = clock();
+	time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
 	printf("\nJob done in %2.4lf s !\n", time_spent);
 	free(pic);
+
 
 	//======================= POST-PROCESSING ===========================//
 	//Takes the filtred image and saves it as a .ppm
 	
-	char oily_filename[20] = "oily_";
-	strcat(oily_filename, filename);
-
-	printf("Offset: %d\n", offset);
+	char oily_filename[9] = "oily.ppm";
+	//strcat(oily_filename, filename);
 
 	FILE *pNewFile = fopen(oily_filename, "wb");
 	//Writing the header
