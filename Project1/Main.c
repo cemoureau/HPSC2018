@@ -159,8 +159,8 @@ int main(int argc, char **argv){
 	//Applying the algorithm to the whole image
 	for (int i = 0; i < height; ++i){
 		if (DEBUG == 0){
-			int progress = (int)100.0*(i+1.0)/height;
-			if (progress % 5 == 0) printf("%d %%\n", progress);
+			int progress = (int)100*(i+1.0)/height;
+			printf("%d %%\n", progress);
 		}
 		for (int j = 0; j < width; ++j) {
 			//Get the neighboring pixels for (i,j)
@@ -264,30 +264,42 @@ int main(int argc, char **argv){
 	FILE *pNewFile = fopen(oily_filename, "wb");
 	//Writing the header
 	char header[offset], temp[6];
+	for (int i =0; i<offset ; ++i)header[i]='\0';
 	sprintf(temp, "P6\n");
 	strcat(header, temp);
-	sprintf(temp, "%d", height);
+	sprintf(temp, "%d", width);
 	strcat(header, temp);
 	strcat(header, " ");
-	sprintf(temp, "%d", width);
+	sprintf(temp, "%d", height);
 	strcat(header, temp);
 	strcat(header, "\n");
 	sprintf(temp, "%d", depth);
 	strcat(header, temp);
 	strcat(header, "\n");
-	//strcat(header, "\0");
-	fwrite(header, 1, sizeof(header), pNewFile);
+	strcat(header, "\0");
+	fwrite(header, 1, offset, pNewFile);
 
 	//Writing the data contained in pic
-	unsigned char newBuffer[3*height*width]; //Creates another buffer
+	/*unsigned char newBuffer[3*height*width]; //Creates another buffer
 	for (int i = 0; i < height; ++i) {
 		for (int j = 0; j < width; ++j) {
 			newBuffer[3*(width*i + j)]   =   newPic[i][j][0];//Red
 			newBuffer[3*(width*i + j) + 1] = newPic[i][j][1];//Green
 			newBuffer[3*(width*i + j) + 2] = newPic[i][j][2];// Blue
+			//printf("%d %d %d ", newBuffer[3*(width*i + j)], newBuffer[3*(width*i + j)+1], newBuffer[3*(width*i + j)+2]);
 		}
 	}
-	fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);
+	fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);*/
+	//Writing the data contained in pic
+	unsigned char newBuffer[3*width]; //Creates another buffer
+	for (int i = 0; i < height; ++i) {
+		for (int j = 0; j < width; ++j) {
+			newBuffer[3*j]   =   newPic[i][j][0];//Red
+			newBuffer[3*j + 1] = newPic[i][j][1];//Green
+			newBuffer[3*j + 2] = newPic[i][j][2];// Blue
+		}
+		fwrite(newBuffer, 1, sizeof(newBuffer), pNewFile);
+	}
 	fclose(pNewFile);
 	//======================= END OF PROGRAM ===========================//
 	
