@@ -5,7 +5,7 @@
 #include <time.h>
 #include <malloc.h>
 
-#define DEBUG 1
+#define DEBUG 0
 
 /*=======================================================================================
 *	This code was written by: Antonin Aumètre - antonin.aumetre@gmail.com
@@ -18,9 +18,6 @@
 
 	//======================= PRE-PROCESSING ===========================//
 	//Reads the content of the image file and stores it in an array
-	/*TODO :
-		- do everything in a cleaner way
-	*/
 
 	int compare (const void * a, const void * b) {
    		return ( *(int*)a - *(int*)b );
@@ -204,10 +201,12 @@
 			}
 
 			//Compute the color intensity (int)
-			int intensities[actual_neighbors];
+			int intensities[actual_neighbors], intensities_o[actual_neighbors];
 			for (int l = 0; l < actual_neighbors; ++l) {
 				intensities[l] = floor((temp_Pic[l][0] + temp_Pic[l][1] + temp_Pic[l][2]) / (3 * Fl));
+				intensities_o[l] = intensities[l];
 			}
+
 
 			qsort(intensities, actual_neighbors, sizeof(int), compare); //Allows to find occurences faster
 			
@@ -251,32 +250,31 @@
 				Irgb[0][m] = 0;
 				Irgb[1][m] = 0;
 				Irgb[2][m] = 0;
-				for (int l = 0; l < actual_neighbors; ++l) {
-					if (intensities[l] == occurences[m][0]){
-						Irgb[0][m] += temp_Pic[l][0];// Red
-						Irgb[1][m] += temp_Pic[l][1];// Green
-						Irgb[2][m] += temp_Pic[l][2];// Blue
+				inten_index = 0;
+				while (inten_index < actual_neighbors) {
+					if (intensities_o[inten_index] == occurences[m][0]){
+						//Which pixel should be added ???
+						Irgb[0][m] += temp_Pic[inten_index][0];// Red
+						Irgb[1][m] += temp_Pic[inten_index][1];// Green
+						Irgb[2][m] += temp_Pic[inten_index][2];// Blue
+						//Looking for the max at the same time
 						if (Irgb[0][m] > I_max_rgb[0])I_max_rgb[0]=Irgb[0][m];//Red
 						if (Irgb[1][m] > I_max_rgb[1])I_max_rgb[1]=Irgb[1][m];//Green
 						if (Irgb[2][m] > I_max_rgb[2])I_max_rgb[2]=Irgb[2][m];//Blue
-						if (DEBUG)printf("Intensity: %d, Sum: %d %d %d\n", intensities[l], Irgb[0][m], Irgb[1][m], Irgb[2][m]);
+						if (DEBUG)printf("Intensity: %d, Sum: %d %d %d\n", intensities[inten_index], Irgb[0][m], Irgb[1][m], Irgb[2][m]);
 					}
+					++ inten_index;
 				}
 			}
 
-			if (DEBUG){
-				end = clock();
-				time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
-				printf("\nMarker 2: %2.4lf s !\n", time_spent);
-				printf("Max intensity: %d\n", Imax);
-			}
-			//Find max(colors intensity)s
-			if(DEBUG)printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
 			//Assign new values
 			newPic[3*(i*width + j) + 0] = (int) (I_max_rgb[0] / Imax);//Red
 			newPic[3*(i*width + j) + 1] = (int) (I_max_rgb[1] / Imax);//Green
 			newPic[3*(i*width + j) + 2] = (int) (I_max_rgb[2] / Imax);//Blue
+
 			if (DEBUG){
+				printf("Max intensity: %d\n", Imax);
+				printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
 				end = clock();
 				time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
 				printf("\nMarker 3: %2.4lf s !\n", time_spent);
