@@ -5,7 +5,7 @@
 #include <time.h>
 #include <malloc.h>
 
-#define DEBUG 0
+#define DEBUG 1
 
 /*=======================================================================================
 *	This code was written by: Antonin Aumètre - antonin.aumetre@gmail.com
@@ -21,6 +21,10 @@
 	/*TODO :
 		- do everything in a cleaner way
 	*/
+
+	int compare (const void * a, const void * b) {
+   		return ( *(int*)a - *(int*)b );
+	}
 
 	int main(int argc, char **argv){
 	
@@ -204,6 +208,8 @@
 			for (int l = 0; l < actual_neighbors; ++l) {
 				intensities[l] = floor((temp_Pic[l][0] + temp_Pic[l][1] + temp_Pic[l][2]) / (3 * Fl));
 			}
+
+			qsort(intensities, actual_neighbors, sizeof(int), compare); //Allows to find occurences faster
 			
 			if (DEBUG){
 				printf("Intensities: ");
@@ -211,38 +217,49 @@
 					printf("\n");
 			}
 
-			//Count occurences of Ik in the set of intensities
-			int occurences[depth+1];
+			int occurences[actual_neighbors][2];
 			int Imax = 0;
-			for (int l = 0; l <= floor(depth/Fl)+1; ++l) {
-				occurences[l] = 0;
-				for (int m = 0; m < actual_neighbors; ++m) {
-					if (intensities[m] == l) {
-						occurences[l]++;
-						if (occurences[l] > Imax) {
-							Imax = occurences[l];
-						}
-					}
+			for (int l=0 ; l<actual_neighbors ; ++l){
+				occurences[l][0] = 0;
+				occurences[l][1] = 0;
+			}
+			int inten_index = 0, occ_index = 0;
+			while (inten_index < actual_neighbors) {
+				occurences[occ_index][0] = intensities[inten_index];
+				while (intensities[inten_index] == occurences[occ_index][0]){
+					++ occurences[occ_index][1];
+					++ inten_index;
+					if (occurences[occ_index][1]>Imax)Imax=occurences[occ_index][1];
+					if (inten_index == actual_neighbors)break;
 				}
+				++ occ_index;
 			}
 
+			if (DEBUG){
+				printf("Occurences:");
+				for (int l = 0; l<occ_index ; ++l){
+					 printf(" [%d %d]", occurences[l][0], occurences[l][1]);
+				}
+				printf("\nI_max = %d\n", Imax);
+			}
+
+
 			//Compute the color intensities
-			//Find max(occurences)
-			int Irgb[3][depth+1];
+			int Irgb[3][occ_index];
 			int I_max_rgb[3]={0,0,0};
-			for (int m = 0; m <= depth; ++m) {//For each intensity level (256 values)
+			for (int m = 0; m <occ_index; ++m) {//For each intensity level
 				Irgb[0][m] = 0;
 				Irgb[1][m] = 0;
 				Irgb[2][m] = 0;
 				for (int l = 0; l < actual_neighbors; ++l) {
-					if (intensities[l] == m){
+					if (intensities[l] == occurences[m][0]){
 						Irgb[0][m] += temp_Pic[l][0];// Red
 						Irgb[1][m] += temp_Pic[l][1];// Green
 						Irgb[2][m] += temp_Pic[l][2];// Blue
 						if (Irgb[0][m] > I_max_rgb[0])I_max_rgb[0]=Irgb[0][m];//Red
 						if (Irgb[1][m] > I_max_rgb[1])I_max_rgb[1]=Irgb[1][m];//Green
 						if (Irgb[2][m] > I_max_rgb[2])I_max_rgb[2]=Irgb[2][m];//Blue
-						if (DEBUG)printf("Intensity: %d, Sum RED:%d\n", intensities[l], Irgb[0][m]);
+						if (DEBUG)printf("Intensity: %d, Sum: %d %d %d\n", intensities[l], Irgb[0][m], Irgb[1][m], Irgb[2][m]);
 					}
 				}
 			}
