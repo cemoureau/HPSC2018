@@ -5,7 +5,7 @@
 #include <time.h>
 #include <malloc.h>
 
-#define DEBUG 0
+#define DEBUG 1
 
 /*=======================================================================================
 *	This code was written by: Antonin Aumètre - antonin.aumetre@gmail.com
@@ -19,11 +19,11 @@
 	//======================= PRE-PROCESSING ===========================//
 	//Reads the content of the image file and stores it in an array
 
-	int compare (const void * a, const void * b) {
-   		return ( *(int*)a - *(int*)b );
-	}
+int compare (const void * a, const void * b) {
+	return ( *(int*)a - *(int*)b );
+}
 
-	int main(int argc, char **argv){
+int main(int argc, char **argv){
 	
 	printf("Usage: ./Main <file_name.ppm> <Fs> <Fl>\n-----------------\n");
 	//Get some parameters
@@ -50,7 +50,7 @@
 	char c, str[40];
 	int j=0; // CHANGE THIS VARIABLE'S NAME !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	for (int i=0; i< 4; ++i){
-			c = fgetc(pFile);
+		c = fgetc(pFile);
 		while ((c != '\n') && (c != '\r')&&(c != '\0') && (c != ' ')){
 			str[j] = c;
 			c = fgetc(pFile);
@@ -167,12 +167,12 @@
 	} //We now have k neighbors
 
 	//Applying the algorithm to the whole image
-	for (int i = 0; i < height; ++i){
+	for (int i = 260; i < 273; ++i){
 		if (DEBUG == 0){
 			float progress = (float)100*(i+1.0)/height;
 			printf("%.1lf %%\n", progress);
 		}
-		for (int j = 0; j < width; ++j) {
+		for (int j = 320; j < 336; ++j) {
 			//Get the neighboring pixels for (i,j)
 			//REMARK : the neighbors include (i,j)
 			if (DEBUG)printf("Line: %d, row: %d\n", i, j);
@@ -204,31 +204,50 @@
 			int intensities[actual_neighbors], intensities_o[actual_neighbors];
 			for (int l = 0; l < actual_neighbors; ++l) {
 				intensities[l] = floor((temp_Pic[l][0] + temp_Pic[l][1] + temp_Pic[l][2]) / (3 * Fl));
-				intensities_o[l] = intensities[l];
+				intensities_o[l] = intensities[l]; //Create a copy which won't be sorted, used to find what pixel values to add
 			}
 
+			//Allows to find occurences faster
+			qsort(intensities, actual_neighbors, sizeof(int), compare); 
 
-			qsort(intensities, actual_neighbors, sizeof(int), compare); //Allows to find occurences faster
+			int address_book[actual_neighbors];//Takes in intensity[n] and gives back the k corresponding to temp_Pic[k]
+			int inten_index = 0, origin_index = 0, ab_index = 0;
+			while (inten_index<actual_neighbors){
+				while (intensities_o[origin_index] != intensities[inten_index])++ origin_index;
+				address_book[ab_index] = origin_index;
+				++ ab_index;
+				++ inten_index;
+				if (intensities[inten_index] != intensities[inten_index-1])origin_index = 0;
+				else ++origin_index;
+			}
+
 			
 			if (DEBUG){
-				printf("Intensities: ");
+				printf("Intensities original: ");
+				for (int l = 0; l < actual_neighbors; l++) printf("%d ", intensities_o[l]);
+					printf("\n");
+				printf("Intensities  sorted:  ");
 				for (int l = 0; l < actual_neighbors; l++) printf("%d ", intensities[l]);
+					printf("\n");
+				printf("Address book: ");
+				for (int l = 0; l < actual_neighbors; l++) printf("%d ", address_book[l]);
 					printf("\n");
 			}
 
+			//Computes the number of occurences of each intensity level and gets the maximum of occurence
 			int occurences[actual_neighbors][2];
-			int Imax = 0;
-			for (int l=0 ; l<actual_neighbors ; ++l){
-				occurences[l][0] = 0;
-				occurences[l][1] = 0;
-			}
-			int inten_index = 0, occ_index = 0;
+			int Imax = 0, occ_index = 0, Imax_index = 0;
+			inten_index = 0;
 			while (inten_index < actual_neighbors) {
 				occurences[occ_index][0] = intensities[inten_index];
+				occurences[occ_index][1] = 0;
 				while (intensities[inten_index] == occurences[occ_index][0]){
 					++ occurences[occ_index][1];
 					++ inten_index;
-					if (occurences[occ_index][1]>Imax)Imax=occurences[occ_index][1];
+					if (occurences[occ_index][1]>Imax){
+						Imax = occurences[occ_index][1];
+						Imax_index = occ_index; 
+					}
 					if (inten_index == actual_neighbors)break;
 				}
 				++ occ_index;
@@ -237,35 +256,37 @@
 			if (DEBUG){
 				printf("Occurences:");
 				for (int l = 0; l<occ_index ; ++l){
-					 printf(" [%d %d]", occurences[l][0], occurences[l][1]);
+					printf(" [%d %d]", occurences[l][0], occurences[l][1]);
 				}
-				printf("\nI_max = %d\n", Imax);
 			}
 
-
 			//Compute the color intensities
-			int Irgb[3][occ_index];
 			int I_max_rgb[3]={0,0,0};
-			for (int m = 0; m <occ_index; ++m) {//For each intensity level
-				Irgb[0][m] = 0;
-				Irgb[1][m] = 0;
-				Irgb[2][m] = 0;
-				inten_index = 0;
-				while (inten_index < actual_neighbors) {
-					if (intensities_o[inten_index] == occurences[m][0]){
-						//Which pixel should be added ???
-						Irgb[0][m] += temp_Pic[inten_index][0];// Red
-						Irgb[1][m] += temp_Pic[inten_index][1];// Green
-						Irgb[2][m] += temp_Pic[inten_index][2];// Blue
-						//Looking for the max at the same time
-						if (Irgb[0][m] > I_max_rgb[0])I_max_rgb[0]=Irgb[0][m];//Red
-						if (Irgb[1][m] > I_max_rgb[1])I_max_rgb[1]=Irgb[1][m];//Green
-						if (Irgb[2][m] > I_max_rgb[2])I_max_rgb[2]=Irgb[2][m];//Blue
-						if (DEBUG)printf("Intensity: %d, Sum: %d %d %d\n", intensities[inten_index], Irgb[0][m], Irgb[1][m], Irgb[2][m]);
-					}
+			inten_index = 0;
+			//Find the max number of max(occurrence)
+			int occ_count = 0;
+			for (int l=0; l<occ_index; ++l){
+				if (occurences[l][1] == Imax)++ occ_count;
+			}
+
+			if (occ_count == 1){
+				while (intensities[inten_index] != occurences[Imax_index][0])++inten_index;//Find the index of intensities where the max starts
+				for (int l=0; l<Imax; ++l){
+					I_max_rgb[0] += temp_Pic[address_book[inten_index]][0];// Red
+					I_max_rgb[1] += temp_Pic[address_book[inten_index]][1];// Green
+					I_max_rgb[2] += temp_Pic[address_book[inten_index]][2];// Blue
 					++ inten_index;
 				}
 			}
+			/*else{
+
+			}
+
+		for (int l=0; l<occ_count; ++l){
+
+		}*/
+
+
 
 			//Assign new values
 			newPic[3*(i*width + j) + 0] = (int) (I_max_rgb[0] / Imax);//Red
@@ -273,7 +294,7 @@
 			newPic[3*(i*width + j) + 2] = (int) (I_max_rgb[2] / Imax);//Blue
 
 			if (DEBUG){
-				printf("Max intensity: %d\n", Imax);
+				printf("\nMax intensity: %d\n", Imax);
 				printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
 				end = clock();
 				time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
@@ -299,7 +320,7 @@
 	//Writing the header
 	char header[offset], temp[6];
 	for (int i =0; i<offset ; ++i)header[i]='\0';
-	sprintf(temp, "P6\n");
+		sprintf(temp, "P6\n");
 	strcat(header, temp);
 	sprintf(temp, "%d", width);
 	strcat(header, temp);
