@@ -168,14 +168,11 @@
 
 	//Applying the algorithm to the whole image
 	for (int i = 0; i < height; ++i){
-		if (DEBUG == 0){
+		/*if (DEBUG == 0){
 			float progress = (float)100*(i+1.0)/height;
 			printf("%.1lf %%\n", progress);
-		}
+		}*/
 		for (int j = 0; j < width; ++j) {
-			//Get the neighboring pixels for (i,j)
-			//REMARK : the neighbors include (i,j)
-			if (DEBUG)printf("Line: %d, row: %d\n", i, j);
 
 			int actual_neighbors = 0;
 			int temp_Pic[k][3];//Create a local copy of the useful portion of the image
@@ -185,102 +182,43 @@
 					temp_Pic[actual_neighbors][0] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 0];
 					temp_Pic[actual_neighbors][1] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 1];
 					temp_Pic[actual_neighbors][2] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 2];
+					if (DEBUG)printf("%d %d %d\n", temp_Pic[actual_neighbors][0], temp_Pic[actual_neighbors][1], temp_Pic[actual_neighbors][2]);
 					actual_neighbors++;
 				}
 			}
 
-			if (DEBUG){
-				end = clock();
-				time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
-				printf("\nMarker 1: %2.4lf s !\n", time_spent);
-				printf("Actual neighbors: %d\n", actual_neighbors);
-				for (int l = 0; l < actual_neighbors; ++l) {
-					printf("Position(%d:%d) ", adresses[l][0], adresses[l][1]);
-					printf("Color: %d %d %d\n", temp_Pic[l][0], temp_Pic[l][1], temp_Pic[l][2]);
-				}
+			int averageC[depth+1][3];
+			int intensityCount[depth+1];
+			for (int l=0 ; l<depth+1; ++l){
+				averageC[l][0] = 0;
+				averageC[l][1] = 0;
+				averageC[l][2] = 0;
+				intensityCount[l]=0;
 			}
 
-			//Compute the color intensity (int)
-			int intensities[actual_neighbors], intensities_o[actual_neighbors];
-			for (int l = 0; l < actual_neighbors; ++l) {
-				intensities[l] = floor((temp_Pic[l][0] + temp_Pic[l][1] + temp_Pic[l][2]) / (3 * Fl));
-				intensities_o[l] = intensities[l];
+			int RGB_max[3]={0,0,0};
+			int curMax = 0;
+			for (int l=0 ; l<actual_neighbors; ++l){
+				int curIntensity = floor((temp_Pic[l][0] + temp_Pic[l][1] + temp_Pic[l][2]) / (3 * Fl));
+				if (DEBUG)printf("Current intensity: %d\n", curIntensity);
+				intensityCount[curIntensity]++;
+				if (intensityCount[curIntensity]>curMax)curMax=intensityCount[curIntensity];
+				averageC[curIntensity][0] += temp_Pic[l][0];
+				averageC[curIntensity][1] += temp_Pic[l][1];
+				averageC[curIntensity][2] += temp_Pic[l][2];
+				//These lines are responsible for the change in appearance
+				if (averageC[curIntensity][0] > RGB_max[0])RGB_max[0]=averageC[curIntensity][0];//Red
+				if (averageC[curIntensity][1] > RGB_max[1])RGB_max[1]=averageC[curIntensity][1];//Red
+				if (averageC[curIntensity][2] > RGB_max[2])RGB_max[2]=averageC[curIntensity][2];//Red
+				
 			}
 
+			if (DEBUG)printf("Max values: %d %d %d\n", RGB_max[0], RGB_max[1], RGB_max[2]);
 
-			qsort(intensities, actual_neighbors, sizeof(int), compare); //Allows to find occurences faster
-			
-			if (DEBUG){
-				printf("Intensities: ");
-				for (int l = 0; l < actual_neighbors; l++) printf("%d ", intensities[l]);
-					printf("\n");
-			}
-
-			int occurences[actual_neighbors][2];
-			int Imax = 0;
-			for (int l=0 ; l<actual_neighbors ; ++l){
-				occurences[l][0] = 0;
-				occurences[l][1] = 0;
-			}
-			int inten_index = 0, occ_index = 0;
-			while (inten_index < actual_neighbors) {
-				occurences[occ_index][0] = intensities[inten_index];
-				while (intensities[inten_index] == occurences[occ_index][0]){
-					++ occurences[occ_index][1];
-					++ inten_index;
-					if (occurences[occ_index][1]>Imax)Imax=occurences[occ_index][1];
-					if (inten_index == actual_neighbors)break;
-				}
-				++ occ_index;
-			}
-
-			if (DEBUG){
-				printf("Occurences:");
-				for (int l = 0; l<occ_index ; ++l){
-					 printf(" [%d %d]", occurences[l][0], occurences[l][1]);
-				}
-				printf("\nI_max = %d\n", Imax);
-			}
-
-
-			//Compute the color intensities
-			int Irgb[3][occ_index];
-			int I_max_rgb[3]={0,0,0};
-			for (int m = 0; m <occ_index; ++m) {//For each intensity level
-				Irgb[0][m] = 0;
-				Irgb[1][m] = 0;
-				Irgb[2][m] = 0;
-				inten_index = 0;
-				while (inten_index < actual_neighbors) {
-					if (intensities_o[inten_index] == occurences[m][0]){
-						//Which pixel should be added ???
-						Irgb[0][m] += temp_Pic[inten_index][0];// Red
-						Irgb[1][m] += temp_Pic[inten_index][1];// Green
-						Irgb[2][m] += temp_Pic[inten_index][2];// Blue
-						//Looking for the max at the same time
-						if (Irgb[0][m] > I_max_rgb[0])I_max_rgb[0]=Irgb[0][m];//Red
-						if (Irgb[1][m] > I_max_rgb[1])I_max_rgb[1]=Irgb[1][m];//Green
-						if (Irgb[2][m] > I_max_rgb[2])I_max_rgb[2]=Irgb[2][m];//Blue
-						if (DEBUG)printf("Intensity: %d, Sum: %d %d %d\n", intensities[inten_index], Irgb[0][m], Irgb[1][m], Irgb[2][m]);
-					}
-					++ inten_index;
-				}
-			}
-
-			//Assign new values
-			newPic[3*(i*width + j) + 0] = (int) (I_max_rgb[0] / Imax);//Red
-			newPic[3*(i*width + j) + 1] = (int) (I_max_rgb[1] / Imax);//Green
-			newPic[3*(i*width + j) + 2] = (int) (I_max_rgb[2] / Imax);//Blue
-
-			if (DEBUG){
-				printf("Max intensity: %d\n", Imax);
-				printf("Rm:%d Gm:%d Bm:%d\n", I_max_rgb[0], I_max_rgb[1], I_max_rgb[2]);
-				end = clock();
-				time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
-				printf("\nMarker 3: %2.4lf s !\n", time_spent);
-				printf("New pixel values: %d %d %d\n", newPic[3*(i*width + j) + 0], newPic[3*(i*width + j) + 1], newPic[3*(i*width + j) + 2]);
-				printf("================================\n");
-			}
+			newPic[3*(i*width + j) + 0] = RGB_max[0] / curMax;
+			newPic[3*(i*width + j) + 1] = RGB_max[1] / curMax;
+			newPic[3*(i*width + j) + 2] = RGB_max[2] / curMax;
+			if (DEBUG)printf("New pixels: %d %d %d\n", newPic[3*(i*width + j) + 0], newPic[3*(i*width + j) + 1], newPic[3*(i*width + j) + 2]);
 		}
 	}
 	end = clock();
