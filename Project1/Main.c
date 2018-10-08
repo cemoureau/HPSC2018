@@ -25,7 +25,7 @@
 
 	int main(int argc, char **argv){
 	
-	printf("Usage: ./Main <file_name.ppm> <Fs> <Fl>\n-----------------\n");
+	printf("Usage: ./Main <file_name.ppm> <(int)Filter_size> <(int)Filter_level>\n-----------------\n");
 	//Get some parameters
 	char *filename = argv[1];
 	int Fs = atoi(argv[2]);
@@ -165,65 +165,75 @@
 			}
 		}
 	} //We now have k neighbors
+	int numthreads = 1;
 
-	//Applying the algorithm to the whole image
-	for (int i = 0; i < height; ++i){
-		/*if (DEBUG == 0){
-			float progress = (float)100*(i+1.0)/height;
-			printf("%.1lf %%\n", progress);
-		}*/
-		for (int j = 0; j < width; ++j) {
+#pragma omp parallel
+	{
+		int actual_neighbors = 0;
+		int temp_Pic[k][3];//Create a local copy of the useful portion of the image
+		int averageC[depth+1][3];
+		int intensityCount[depth+1];
+		int RGB_max[3]={0,0,0};
+		int curMax = 0;
 
-			int actual_neighbors = 0;
-			int temp_Pic[k][3];//Create a local copy of the useful portion of the image
-			for (int l = 0; l < k; ++l) {
-				//Check if the neighbor is not outside the picture
-				if ((i + adresses[l][1] >= 0) && (i + adresses[l][1] < height) && (j + adresses[l][0] >= 0) && (j + adresses[l][0] < width)) {
-					temp_Pic[actual_neighbors][0] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 0];
-					temp_Pic[actual_neighbors][1] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 1];
-					temp_Pic[actual_neighbors][2] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 2];
-					if (DEBUG)printf("%d %d %d\n", temp_Pic[actual_neighbors][0], temp_Pic[actual_neighbors][1], temp_Pic[actual_neighbors][2]);
-					actual_neighbors++;
+		numthreads = __builtin_omp_get_num_threads();
+		#pragma omp for
+		//Applying the algorithm to the whole image
+		for (int i = 0; i < height; ++i){
+			for (int j = 0; j < width; ++j) {
+
+				actual_neighbors = 0;
+				for (int l = 0; l < k; ++l) {
+					//Check if the neighbor is not outside the picture
+					if ((i + adresses[l][1] >= 0) && (i + adresses[l][1] < height) && (j + adresses[l][0] >= 0) && (j + adresses[l][0] < width)) {
+						temp_Pic[actual_neighbors][0] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 0];
+						temp_Pic[actual_neighbors][1] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 1];
+						temp_Pic[actual_neighbors][2] = pic[3*((i + adresses[l][1])*width + j + adresses[l][0]) + 2];
+						if (DEBUG)printf("%d %d %d\n", temp_Pic[actual_neighbors][0], temp_Pic[actual_neighbors][1], temp_Pic[actual_neighbors][2]);
+						actual_neighbors++;
+					}
 				}
+
+				if (DEBUG)printf("Actual neighbors found: %d\n", actual_neighbors);
+
+				for (int l=0 ; l<depth+1; ++l){
+					averageC[l][0] = 0;
+					averageC[l][1] = 0;
+					averageC[l][2] = 0;
+					intensityCount[l]=0;
+				}
+				RGB_max[0]=0;
+				RGB_max[1]=0;
+				RGB_max[2]=0;
+				curMax = 0;
+				for (int l=0 ; l<actual_neighbors; ++l){
+					int curIntensity = floor((temp_Pic[l][0] + temp_Pic[l][1] + temp_Pic[l][2]) / (3 * Fl));
+					if (DEBUG)printf("Current intensity: %d\n", curIntensity);
+					intensityCount[curIntensity]++;
+					if (intensityCount[curIntensity]>curMax)curMax=intensityCount[curIntensity];
+					averageC[curIntensity][0] += temp_Pic[l][0];
+					averageC[curIntensity][1] += temp_Pic[l][1];
+					averageC[curIntensity][2] += temp_Pic[l][2];
+					//These lines are responsible for the change in appearance
+					if (averageC[curIntensity][0] > RGB_max[0])RGB_max[0]=averageC[curIntensity][0];//Red
+					if (averageC[curIntensity][1] > RGB_max[1])RGB_max[1]=averageC[curIntensity][1];//Green
+					if (averageC[curIntensity][2] > RGB_max[2])RGB_max[2]=averageC[curIntensity][2];//Blue
+				}
+
+				if (DEBUG)printf("Max values: %d %d %d\n", RGB_max[0], RGB_max[1], RGB_max[2]);
+
+				newPic[3*(i*width + j) + 0] = RGB_max[0] / curMax;
+				newPic[3*(i*width + j) + 1] = RGB_max[1] / curMax;
+				newPic[3*(i*width + j) + 2] = RGB_max[2] / curMax;
+
+				if (DEBUG)printf("New pixels: %d %d %d\n", newPic[3*(i*width + j) + 0], newPic[3*(i*width + j) + 1], newPic[3*(i*width + j) + 2]);
 			}
-
-			int averageC[depth+1][3];
-			int intensityCount[depth+1];
-			for (int l=0 ; l<depth+1; ++l){
-				averageC[l][0] = 0;
-				averageC[l][1] = 0;
-				averageC[l][2] = 0;
-				intensityCount[l]=0;
-			}
-
-			int RGB_max[3]={0,0,0};
-			int curMax = 0;
-			for (int l=0 ; l<actual_neighbors; ++l){
-				int curIntensity = floor((temp_Pic[l][0] + temp_Pic[l][1] + temp_Pic[l][2]) / (3 * Fl));
-				if (DEBUG)printf("Current intensity: %d\n", curIntensity);
-				intensityCount[curIntensity]++;
-				if (intensityCount[curIntensity]>curMax)curMax=intensityCount[curIntensity];
-				averageC[curIntensity][0] += temp_Pic[l][0];
-				averageC[curIntensity][1] += temp_Pic[l][1];
-				averageC[curIntensity][2] += temp_Pic[l][2];
-				//These lines are responsible for the change in appearance
-				if (averageC[curIntensity][0] > RGB_max[0])RGB_max[0]=averageC[curIntensity][0];//Red
-				if (averageC[curIntensity][1] > RGB_max[1])RGB_max[1]=averageC[curIntensity][1];//Red
-				if (averageC[curIntensity][2] > RGB_max[2])RGB_max[2]=averageC[curIntensity][2];//Red
-				
-			}
-
-			if (DEBUG)printf("Max values: %d %d %d\n", RGB_max[0], RGB_max[1], RGB_max[2]);
-
-			newPic[3*(i*width + j) + 0] = RGB_max[0] / curMax;
-			newPic[3*(i*width + j) + 1] = RGB_max[1] / curMax;
-			newPic[3*(i*width + j) + 2] = RGB_max[2] / curMax;
-			if (DEBUG)printf("New pixels: %d %d %d\n", newPic[3*(i*width + j) + 0], newPic[3*(i*width + j) + 1], newPic[3*(i*width + j) + 2]);
 		}
 	}
+	
 	end = clock();
-	time_spent = (double)(end - begin)/ CLOCKS_PER_SEC;
-	printf("\nJob done in %2.4lf s !\n", time_spent);
+	time_spent = (double)(end - begin) / (CLOCKS_PER_SEC * numthreads);
+	printf("\nJob done in %2.4lf s, using %d threads.\n", time_spent, numthreads);
 	free(pic);
 
 
