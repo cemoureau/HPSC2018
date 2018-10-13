@@ -167,7 +167,9 @@
 	} //We now have k neighbors
 	int numthreads = 1;
 
-#pragma omp parallel
+for (int chunk_size=1 ; chunk_size <= 131072 ; chunk_size*=2){
+	begin = clock();
+#pragma omp parallel 
 	{
 		int actual_neighbors = 0;
 		int temp_Pic[k][3];//Create a local copy of the useful portion of the image
@@ -177,7 +179,7 @@
 		int curMax = 0;
 
 		numthreads = __builtin_omp_get_num_threads();
-		#pragma omp for
+		#pragma omp for schedule(static, chunk_size)
 		//Applying the algorithm to the whole image
 		for (int i = 0; i < height; ++i){
 			for (int j = 0; j < width; ++j) {
@@ -233,7 +235,9 @@
 	
 	end = clock();
 	time_spent = (double)(end - begin) / (CLOCKS_PER_SEC * numthreads);
-	printf("\nJob done in %2.4lf s, using %d threads.\n", time_spent, numthreads);
+	//printf("\nJob done in %2.4lf s, using %d threads.\n", time_spent, numthreads);
+	printf("\n%d %2.4lf s", chunk_size, time_spent);
+}
 	free(pic);
 
 
