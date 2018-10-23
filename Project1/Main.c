@@ -19,10 +19,6 @@
 	//======================= PRE-PROCESSING ===========================//
 	//Reads the content of the image file and stores it in an array
 
-	int compare (const void * a, const void * b) {
-   		return ( *(int*)a - *(int*)b );
-	}
-
 	int main(int argc, char **argv){
 	
 	printf("Usage: ./Main <file_name.ppm> <(int)Filter_size> <(int)Filter_level>\n-----------------\n");
@@ -167,7 +163,7 @@
 	} //We now have k neighbors
 	int numthreads = 1;
 
-for (int chunk_size=1 ; chunk_size <= 131072 ; chunk_size*=2){
+for (int chunk_size=1 ; chunk_size <= 256 ; chunk_size += 8){
 	begin = clock();
 #pragma omp parallel 
 	{
